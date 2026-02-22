@@ -10,6 +10,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
+local mouse = player:GetMouse()
 
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "FinestHub" 
@@ -87,11 +88,12 @@ local function addBtn(parent, text, y)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10); return btn
 end
 
---// [MODULES]
+--// [SPEED MODULE]
 local speedBox = addBox(SpeedPage, "Enter Speed", 0)
 local setSpeed = addBtn(SpeedPage, "Set Speed", 55)
 setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
 
+--// [FLY MODULE]
 local flying = false
 local bv, bg
 local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70")
@@ -104,16 +106,39 @@ FlyBtn.MouseButton1Click:Connect(function()
     else if bv then bv:Destroy() end if bg then bg:Destroy() end end
 end)
 
+--// [GHOST MODULE]
 local ghostEnabled = false
 local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0)
 ghostBtn.MouseButton1Click:Connect(function() click(); ghostEnabled = not ghostEnabled; ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3 = ghostEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
 
+--// [TP MODULE + CLICK TP]
 local savedPosition, autoReturn = nil, false
-local saveBtn = addBtn(TPPage, "Save Position", 0); local tpBtn = addBtn(TPPage, "Teleport", 55); local autoBtn = addBtn(TPPage, "Auto-Return: OFF", 110)
+local clickTpEnabled = false
+local saveBtn = addBtn(TPPage, "Save Position", 0)
+local tpBtn = addBtn(TPPage, "Teleport", 55)
+local autoBtn = addBtn(TPPage, "Auto-Return: OFF", 110)
+local clickTpBtn = addBtn(TPPage, "Click TP: OFF", 165)
+
 saveBtn.MouseButton1Click:Connect(function() click(); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then savedPosition = player.Character.HumanoidRootPart.CFrame end end)
 tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame = savedPosition end end)
 autoBtn.MouseButton1Click:Connect(function() click(); autoReturn = not autoReturn; autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60,0,100) end)
 
+clickTpBtn.MouseButton1Click:Connect(function() 
+    click(); clickTpEnabled = not clickTpEnabled
+    clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"
+    clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+end)
+
+mouse.Button1Down:Connect(function()
+    if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0)
+            playSound(12222242, 0.4) -- Teleport sound
+        end
+    end
+end)
+
+--// [PLAYERS TAB]
 local PlayerScroll = Instance.new("ScrollingFrame", PlayersPage); PlayerScroll.Size = UDim2.new(1, 0, 1, 0); PlayerScroll.BackgroundTransparency = 1; PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0); PlayerScroll.ScrollBarThickness = 2
 local UIList = Instance.new("UIListLayout", PlayerScroll); UIList.Padding = UDim.new(0, 5)
 local function refreshPlayers()
@@ -126,34 +151,23 @@ local function refreshPlayers()
 end
 task.spawn(function() while task.wait(5) do if PlayersPage.Visible then refreshPlayers() end end end)
 
---// [STABLE FLING MODULE]
+--// [FLING MODULE]
 local spinning = false
 local FBtn = addBtn(TrollPage, "Fling: OFF", 0)
 local FPower = addBox(TrollPage, "Power", 55, "10000")
 
 FBtn.MouseButton1Click:Connect(function() 
     click(); spinning = not spinning
-    FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"
-    FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
-    
+    FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"; FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     if not spinning and player.Character then
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        
-        -- CLEANUP: Kill all rotation and momentum instantly
-        if hrp then
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-            if hrp:FindFirstChild("FlingVel") then hrp.FlingVel:Destroy() end
-        end
-        if hum then
-            hum.PlatformStand = false
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
+        if hrp then hrp.Velocity = Vector3.zero; hrp.RotVelocity = Vector3.zero; if hrp:FindFirstChild("FlingVel") then hrp.FlingVel:Destroy() end end
+        if hum then hum.PlatformStand = false; hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
     end
 end)
 
---// [ESP]
+--// [VISUALS]
 local espEnabled = false
 local function createESP(p)
     if p == player then return end
@@ -179,16 +193,10 @@ RunService.RenderStepped:Connect(function()
 
     if spinning then
         local s = tonumber(FPower.Text) or 10000
-        -- FORCE NOCLIP
         for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
-        -- FORCE STABILITY
-        hum.PlatformStand = true
-        hrp.Velocity = Vector3.new(0, 0.4, 0) 
-        hrp.RotVelocity = Vector3.new(0, s, 0) 
-        
+        hum.PlatformStand = true; hrp.Velocity = Vector3.new(0, 0.4, 0); hrp.RotVelocity = Vector3.new(0, s, 0) 
         local bodyVel = hrp:FindFirstChild("FlingVel") or Instance.new("BodyVelocity", hrp)
-        bodyVel.Name = "FlingVel"; bodyVel.MaxForce = Vector3.new(math.huge, 0, math.huge)
-        bodyVel.Velocity = hrp.CFrame.LookVector * 0.1
+        bodyVel.Name = "FlingVel"; bodyVel.MaxForce = Vector3.new(math.huge, 0, math.huge); bodyVel.Velocity = hrp.CFrame.LookVector * 0.1
     end
 
     if flying and bv and bg then
