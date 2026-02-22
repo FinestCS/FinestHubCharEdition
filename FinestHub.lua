@@ -133,7 +133,7 @@ mouse.Button1Down:Connect(function()
     if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0)
-            playSound(12222242, 0.4) -- Teleport sound
+            playSound(12222242, 0.4) 
         end
     end
 end)
@@ -185,7 +185,7 @@ local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Chara
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0)
 EspBtn.MouseButton1Click:Connect(function() click(); espEnabled = not espEnabled; EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"; EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200); if espEnabled then for _, p in pairs(Players:GetPlayers()) do createESP(p) end else removeESP() end end)
 
---// [RENDER LOOP]
+--// [MASTER LOOP]
 RunService.RenderStepped:Connect(function()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart
@@ -211,6 +211,19 @@ RunService.RenderStepped:Connect(function()
     end
 
     if ghostEnabled and not spinning then for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+end)
+
+--// THE RESTORATION: Auto-Return Loop
+task.spawn(function()
+    while task.wait(3.5) do
+        if autoReturn and savedPosition and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = savedPosition
+                playSound(6895079853, 0.3) -- Small click sound when you return
+            end
+        end
+    end
 end)
 
 UIS.InputBegan:Connect(function(input, processed) if not processed and input.KeyCode == Enum.KeyCode.RightControl then menuSound(); Main.Visible = not Main.Visible; WFrame.Visible = Main.Visible end end)
