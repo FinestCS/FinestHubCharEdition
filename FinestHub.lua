@@ -1,7 +1,7 @@
 --// Finest Hub - Char Edition 
 --// [INITIAL SETUP]
 pcall(function()
-    game.CoreGui:FindFirstChild("FinestHub"):Destroy() 
+    if game.CoreGui:FindFirstChild("FinestHub") then game.CoreGui.FinestHub:Destroy() end
     if game.CoreGui:FindFirstChild("FinestWatermark") then game.CoreGui.FinestWatermark:Destroy() end
 end)
 
@@ -74,14 +74,22 @@ Min.MouseButton1Click:Connect(function()
 end)
 
 local function createTab(name, y)
-    local btn = Instance.new("TextButton", Sidebar); btn.Size = UDim2.new(1,-10,0,32); btn.Position = UDim2.new(0,5,0,y); btn.Text = name; btn.BackgroundColor3 = Color3.fromRGB(70,0,110); btn.TextColor3 = Color3.fromRGB(230,200,255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14
+    local btn = Instance.new("TextButton", Sidebar); btn.Size = UDim2.new(1,-10,0,28); btn.Position = UDim2.new(0,5,0,y); btn.Text = name; btn.BackgroundColor3 = Color3.fromRGB(70,0,110); btn.TextColor3 = Color3.fromRGB(230,200,255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
     local page = Instance.new("Frame", Content); page.Size = UDim2.new(1,0,1,0); page.BackgroundTransparency = 1; page.Visible = false
     btn.MouseButton1Click:Connect(function() click(); for _,v in pairs(Content:GetChildren()) do if v:IsA("Frame") then v.Visible = false end end; page.Visible = true end)
     return page
 end
 
-local SpeedPage = createTab("Speed", 5); local FlyPage = createTab("Fly", 40); local GhostPage = createTab("Ghost", 75); local TPPage = createTab("TP", 110); local PlayersPage = createTab("Players", 145); local TrollPage = createTab("Troll", 180); local VisualPage = createTab("Visuals", 215)
+--// ALL TABS (Adjusted spacing to fit menu)
+local SpeedPage = createTab("Speed", 5)
+local FlyPage = createTab("Fly", 35)
+local GhostPage = createTab("Ghost", 65)
+local TriggerPage = createTab("Trigger", 95)
+local TPPage = createTab("TP", 125)
+local PlayersPage = createTab("Players", 155)
+local TrollPage = createTab("Troll", 185)
+local VisualPage = createTab("Visuals", 215)
 SpeedPage.Visible = true
 
 local function addBox(parent, placeholder, y, default)
@@ -113,35 +121,14 @@ ghostBtn.MouseButton1Click:Connect(function() click(); ghostEnabled = not ghostE
 
 --// [TP MODULE + CLICK TP]
 local savedPosition, autoReturn = nil, false; local clickTpEnabled = false
-local saveBtn = addBtn(TPPage, "Save Position", 0)
-local tpBtn = addBtn(TPPage, "Teleport", 55)
-
--- FIXED AUTO-RETURN LAYOUT (110 Y-AXIS)
-local autoBtn = addBtn(TPPage, "Auto-Return: OFF", 110)
-local autoTimeBox = addBox(TPPage, "Delay", 110, "3.5")
+local saveBtn = addBtn(TPPage, "Save Position", 0); local tpBtn = addBtn(TPPage, "Teleport", 55); local autoBtn = addBtn(TPPage, "Auto-Return: OFF", 110); local autoTimeBox = addBox(TPPage, "Delay", 110, "3.5")
 autoTimeBox.Position = UDim2.new(0, 190, 0, 0); autoTimeBox.Size = UDim2.new(0, 80, 0, 45)
-
 local clickTpBtn = addBtn(TPPage, "Click TP: OFF", 165)
-
--- FLASH EFFECT ON SAVE
-saveBtn.MouseButton1Click:Connect(function() 
-    click()
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
-        savedPosition = player.Character.HumanoidRootPart.CFrame 
-        saveBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
-        TweenService:Create(saveBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play()
-    end 
-end)
-
+saveBtn.MouseButton1Click:Connect(function() click(); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then savedPosition = player.Character.HumanoidRootPart.CFrame; saveBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 120); TweenService:Create(saveBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play() end end)
 tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame = savedPosition end end)
 autoBtn.MouseButton1Click:Connect(function() click(); autoReturn = not autoReturn; autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
 clickTpBtn.MouseButton1Click:Connect(function() click(); clickTpEnabled = not clickTpEnabled; clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"; clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
-
-mouse.Button1Down:Connect(function()
-    if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0); playSound(12222242, 0.4) 
-    end
-end)
+mouse.Button1Down:Connect(function() if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0); playSound(12222242, 0.4) end end)
 
 --// [PLAYERS TAB]
 local PlayerScroll = Instance.new("ScrollingFrame", PlayersPage); PlayerScroll.Size = UDim2.new(1, 0, 1, 0); PlayerScroll.BackgroundTransparency = 1; PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0); PlayerScroll.ScrollBarThickness = 2
@@ -184,7 +171,7 @@ local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Chara
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0)
 EspBtn.MouseButton1Click:Connect(function() click(); espEnabled = not espEnabled; EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"; EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200); if espEnabled then for _, p in pairs(Players:GetPlayers()) do createESP(p) end else removeESP() end end)
 
---// [MASTER LOOP]
+--// [ORIGINAL MASTER LOOP - UNTOUCHED]
 RunService.RenderStepped:Connect(function()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local hrp = char.HumanoidRootPart; local hum = char:FindFirstChildOfClass("Humanoid")
@@ -211,11 +198,28 @@ end)
 --// [DYNAMIC AUTO-RETURN]
 task.spawn(function()
     while true do
-        local delayTime = tonumber(autoTimeBox.Text) or 3.5
-        task.wait(delayTime)
-        if autoReturn and savedPosition and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then hrp.CFrame = savedPosition end
+        local delayTime = tonumber(autoTimeBox.Text) or 3.5; task.wait(delayTime)
+        if autoReturn and savedPosition and player.Character then local hrp = player.Character:FindFirstChild("HumanoidRootPart") if hrp then hrp.CFrame = savedPosition end end
+    end
+end)
+
+--// [TRIGGERBOT ADDON - COMPLETELY ISOLATED]
+local triggerbotEnabled = false
+local TriggerBtn = addBtn(TriggerPage, "Triggerbot: OFF", 0)
+TriggerBtn.MouseButton1Click:Connect(function()
+    click(); triggerbotEnabled = not triggerbotEnabled
+    TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
+    TriggerBtn.BackgroundColor3 = triggerbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if triggerbotEnabled and mouse.Target then
+            local t = mouse.Target
+            local c = (t.Parent:FindFirstChildOfClass("Humanoid") and t.Parent) or (t.Parent.Parent:FindFirstChildOfClass("Humanoid") and t.Parent.Parent)
+            if c and c ~= player.Character and c:FindFirstChildOfClass("Humanoid").Health > 0 then
+                mouse1click()
+            end
         end
     end
 end)
