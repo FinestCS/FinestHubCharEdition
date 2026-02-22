@@ -12,6 +12,13 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 
+--// [ANTI-AFK BACKGROUND LOGIC]
+local VirtualUser = game:GetService("VirtualUser")
+player.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "FinestHub" 
 
@@ -26,15 +33,20 @@ end
 local function click() playSound(6895079853, 0.5) end
 local function menuSound() playSound(6031313768, 0.7) end
 
---// [WATERMARK + FPS]
+--// [WATERMARK + ANTI-AFK STATUS]
 local WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
 WatermarkGui.Name = "FinestWatermark"
 local WFrame = Instance.new("Frame", WatermarkGui)
-WFrame.Size = UDim2.new(0, 260, 0, 30); WFrame.Position = UDim2.new(1, -270, 0, 10); WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
+WFrame.Size = UDim2.new(0, 360, 0, 30); WFrame.Position = UDim2.new(1, -370, 0, 10); WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
 Instance.new("UICorner", WFrame).CornerRadius = UDim.new(0, 6)
 local WStroke = Instance.new("UIStroke", WFrame); WStroke.Color = Color3.fromRGB(170, 0, 255); WStroke.Thickness = 1.5
-local WText = Instance.new("TextLabel", WFrame); WText.Size = UDim2.new(1, 0, 1, 0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1, 1, 1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14
-RunService.RenderStepped:Connect(function(dt) WText.Text = "Finest Hub | Char Edition | FPS: " .. math.floor(1/dt) end)
+
+local WText = Instance.new("TextLabel", WFrame)
+WText.Size = UDim2.new(1, 0, 1, 0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1, 1, 1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14; WText.RichText = true
+
+RunService.RenderStepped:Connect(function(dt) 
+    WText.Text = "Finest Hub | Char Edition | FPS: " .. math.floor(1/dt) .. " | <font color='#00FF00'>[ Anti AFK: On ]</font>" 
+end)
 
 --// [MAIN UI]
 local Main = Instance.new("Frame", gui)
@@ -213,15 +225,12 @@ RunService.RenderStepped:Connect(function()
     if ghostEnabled and not spinning then for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
 end)
 
---// THE RESTORATION: Auto-Return Loop
+--// Auto-Return Loop
 task.spawn(function()
     while task.wait(3.5) do
         if autoReturn and savedPosition and player.Character then
             local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                hrp.CFrame = savedPosition
-                playSound(6895079853, 0.3) -- Small click sound when you return
-            end
+            if hrp then hrp.CFrame = savedPosition end
         end
     end
 end)
