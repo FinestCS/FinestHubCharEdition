@@ -37,16 +37,11 @@ local function menuSound() playSound(6031313768, 0.7) end
 local WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
 WatermarkGui.Name = "FinestWatermark"
 local WFrame = Instance.new("Frame", WatermarkGui)
-WFrame.Size = UDim2.new(0, 360, 0, 30); WFrame.Position = UDim2.new(1, -370, 0, 10); WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
+WFrame.Size = UDim2.new(0, 380, 0, 30); WFrame.Position = UDim2.new(1, -390, 0, 10); WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
 Instance.new("UICorner", WFrame).CornerRadius = UDim.new(0, 6)
 local WStroke = Instance.new("UIStroke", WFrame); WStroke.Color = Color3.fromRGB(170, 0, 255); WStroke.Thickness = 1.5
-
-local WText = Instance.new("TextLabel", WFrame)
-WText.Size = UDim2.new(1, 0, 1, 0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1, 1, 1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14; WText.RichText = true
-
-RunService.RenderStepped:Connect(function(dt) 
-    WText.Text = "Finest Hub | Char Edition | FPS: " .. math.floor(1/dt) .. " | <font color='#00FF00'>[ Anti AFK: On ]</font>" 
-end)
+local WText = Instance.new("TextLabel", WFrame); WText.Size = UDim2.new(1, 0, 1, 0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1, 1, 1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14; WText.RichText = true
+RunService.RenderStepped:Connect(function(dt) WText.Text = "Finest Hub | Char Edition | FPS: " .. math.floor(1/dt) .. " | <font color='#00FF00'>[ Anti AFK: On ]</font>" end)
 
 --// [MAIN UI]
 local Main = Instance.new("Frame", gui)
@@ -63,7 +58,7 @@ local Sidebar = Instance.new("Frame", Main); Sidebar.Size = UDim2.new(0,140,1,-5
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,14)
 local Content = Instance.new("Frame", Main); Content.Size = UDim2.new(1,-160,1,-60); Content.Position = UDim2.new(0,155,0,50); Content.BackgroundTransparency = 1
 
---// MINIMIZE LOGIC
+--// MINIMIZE LOGIC FIXED
 local minimized = false
 Min.MouseButton1Click:Connect(function()
     menuSound(); minimized = not minimized
@@ -78,7 +73,6 @@ Min.MouseButton1Click:Connect(function()
     end
 end)
 
---// [TAB SYSTEM]
 local function createTab(name, y)
     local btn = Instance.new("TextButton", Sidebar); btn.Size = UDim2.new(1,-10,0,32); btn.Position = UDim2.new(0,5,0,y); btn.Text = name; btn.BackgroundColor3 = Color3.fromRGB(70,0,110); btn.TextColor3 = Color3.fromRGB(230,200,255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
@@ -90,7 +84,6 @@ end
 local SpeedPage = createTab("Speed", 5); local FlyPage = createTab("Fly", 40); local GhostPage = createTab("Ghost", 75); local TPPage = createTab("TP", 110); local PlayersPage = createTab("Players", 145); local TrollPage = createTab("Troll", 180); local VisualPage = createTab("Visuals", 215)
 SpeedPage.Visible = true
 
---// [UI HELPERS]
 local function addBox(parent, placeholder, y, default)
     local box = Instance.new("TextBox", parent); box.Size = UDim2.new(0,180,0,45); box.Position = UDim2.new(0,0,0,y); box.PlaceholderText = placeholder; box.Text = default or ""; box.BackgroundColor3 = Color3.fromRGB(60,0,100); box.TextColor3 = Color3.new(1,1,1); box.Font = Enum.Font.GothamBold; box.TextSize = 16
     Instance.new("UICorner", box).CornerRadius = UDim.new(0,10); return box
@@ -101,52 +94,52 @@ local function addBtn(parent, text, y)
 end
 
 --// [SPEED MODULE]
-local speedBox = addBox(SpeedPage, "Enter Speed", 0)
-local setSpeed = addBtn(SpeedPage, "Set Speed", 55)
+local speedBox = addBox(SpeedPage, "Enter Speed", 0); local setSpeed = addBtn(SpeedPage, "Set Speed", 55)
 setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
 
 --// [FLY MODULE]
-local flying = false
-local bv, bg
-local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70")
-local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55)
+local flying = false; local bv, bg
+local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55)
 FlyBtn.MouseButton1Click:Connect(function()
     click(); flying = not flying; FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"; FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if flying and hrp then
-        bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e9, 1e9, 1e9); bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    if flying and hrp then bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e9, 1e9, 1e9); bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
     else if bv then bv:Destroy() end if bg then bg:Destroy() end end
 end)
 
 --// [GHOST MODULE]
-local ghostEnabled = false
-local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0)
+local ghostEnabled = false; local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0)
 ghostBtn.MouseButton1Click:Connect(function() click(); ghostEnabled = not ghostEnabled; ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3 = ghostEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
 
 --// [TP MODULE + CLICK TP]
-local savedPosition, autoReturn = nil, false
-local clickTpEnabled = false
+local savedPosition, autoReturn = nil, false; local clickTpEnabled = false
 local saveBtn = addBtn(TPPage, "Save Position", 0)
 local tpBtn = addBtn(TPPage, "Teleport", 55)
+
+-- FIXED AUTO-RETURN LAYOUT (110 Y-AXIS)
 local autoBtn = addBtn(TPPage, "Auto-Return: OFF", 110)
+local autoTimeBox = addBox(TPPage, "Delay", 110, "3.5")
+autoTimeBox.Position = UDim2.new(0, 190, 0, 0); autoTimeBox.Size = UDim2.new(0, 80, 0, 45)
+
 local clickTpBtn = addBtn(TPPage, "Click TP: OFF", 165)
 
-saveBtn.MouseButton1Click:Connect(function() click(); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then savedPosition = player.Character.HumanoidRootPart.CFrame end end)
-tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame = savedPosition end end)
-autoBtn.MouseButton1Click:Connect(function() click(); autoReturn = not autoReturn; autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(60,0,100) end)
-
-clickTpBtn.MouseButton1Click:Connect(function() 
-    click(); clickTpEnabled = not clickTpEnabled
-    clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"
-    clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+-- FLASH EFFECT ON SAVE
+saveBtn.MouseButton1Click:Connect(function() 
+    click()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
+        savedPosition = player.Character.HumanoidRootPart.CFrame 
+        saveBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
+        TweenService:Create(saveBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play()
+    end 
 end)
 
+tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame = savedPosition end end)
+autoBtn.MouseButton1Click:Connect(function() click(); autoReturn = not autoReturn; autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
+clickTpBtn.MouseButton1Click:Connect(function() click(); clickTpEnabled = not clickTpEnabled; clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"; clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
+
 mouse.Button1Down:Connect(function()
-    if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0)
-            playSound(12222242, 0.4) 
-        end
+    if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0); playSound(12222242, 0.4) 
     end
 end)
 
@@ -165,15 +158,11 @@ task.spawn(function() while task.wait(5) do if PlayersPage.Visible then refreshP
 
 --// [FLING MODULE]
 local spinning = false
-local FBtn = addBtn(TrollPage, "Fling: OFF", 0)
-local FPower = addBox(TrollPage, "Power", 55, "10000")
-
+local FBtn = addBtn(TrollPage, "Fling: OFF", 0); local FPower = addBox(TrollPage, "Power", 55, "10000")
 FBtn.MouseButton1Click:Connect(function() 
-    click(); spinning = not spinning
-    FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"; FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    click(); spinning = not spinning; FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"; FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     if not spinning and player.Character then
-        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart"); local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if hrp then hrp.Velocity = Vector3.zero; hrp.RotVelocity = Vector3.zero; if hrp:FindFirstChild("FlingVel") then hrp.FlingVel:Destroy() end end
         if hum then hum.PlatformStand = false; hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
     end
@@ -184,9 +173,7 @@ local espEnabled = false
 local function createESP(p)
     if p == player then return end
     local function apply()
-        local char = p.Character or p.CharacterAdded:Wait()
-        local hrp = char:WaitForChild("HumanoidRootPart", 5)
-        if not hrp then return end
+        local char = p.Character or p.CharacterAdded:Wait(); local hrp = char:WaitForChild("HumanoidRootPart", 5); if not hrp then return end
         local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = Color3.fromRGB(170, 0, 255); h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
         local b = Instance.new("BillboardGui", char); b.Name = "FinestName"; b.Size = UDim2.new(0, 200, 0, 50); b.Adornee = hrp; b.AlwaysOnTop = true; b.ExtentsOffset = Vector3.new(0, 3, 0)
         local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.fromRGB(190, 100, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 14
@@ -200,9 +187,7 @@ EspBtn.MouseButton1Click:Connect(function() click(); espEnabled = not espEnabled
 --// [MASTER LOOP]
 RunService.RenderStepped:Connect(function()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    local hum = char:FindFirstChildOfClass("Humanoid")
-
+    local hrp = char.HumanoidRootPart; local hum = char:FindFirstChildOfClass("Humanoid")
     if spinning then
         local s = tonumber(FPower.Text) or 10000
         for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
@@ -210,7 +195,6 @@ RunService.RenderStepped:Connect(function()
         local bodyVel = hrp:FindFirstChild("FlingVel") or Instance.new("BodyVelocity", hrp)
         bodyVel.Name = "FlingVel"; bodyVel.MaxForce = Vector3.new(math.huge, 0, math.huge); bodyVel.Velocity = hrp.CFrame.LookVector * 0.1
     end
-
     if flying and bv and bg then
         local cam = workspace.CurrentCamera; local direction = Vector3.zero
         if UIS:IsKeyDown(Enum.KeyCode.W) then direction += cam.CFrame.LookVector end
@@ -221,13 +205,14 @@ RunService.RenderStepped:Connect(function()
         if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then direction -= Vector3.new(0,1,0) end
         bv.Velocity = (direction.Magnitude > 0) and (direction.Unit * (tonumber(FlySpeedBox.Text) or 70)) or Vector3.zero; bg.CFrame = cam.CFrame
     end
-
     if ghostEnabled and not spinning then for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
 end)
 
---// Auto-Return Loop
+--// [DYNAMIC AUTO-RETURN]
 task.spawn(function()
-    while task.wait(3.5) do
+    while true do
+        local delayTime = tonumber(autoTimeBox.Text) or 3.5
+        task.wait(delayTime)
         if autoReturn and savedPosition and player.Character then
             local hrp = player.Character:FindFirstChild("HumanoidRootPart")
             if hrp then hrp.CFrame = savedPosition end
