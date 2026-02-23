@@ -32,7 +32,38 @@ local function playSound(id, vol)
 end
 local function click() playSound(6895079853, 0.5) end
 local function menuSound() playSound(6031313768, 0.7) end
+--// NOTIFICATION SYSTEM
+local function notify(text, isOn)
+    local notif = Instance.new("Frame", gui)
+    notif.Size = UDim2.new(0, 250, 0, 45)
+    notif.Position = UDim2.new(1, 300, 1, -70)
+    notif.BackgroundColor3 = isOn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    notif.BackgroundTransparency = 0.1
 
+    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 12)
+
+    local label = Instance.new("TextLabel", notif)
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 16
+    label.TextColor3 = Color3.new(1,1,1)
+
+    -- Slide in
+    TweenService:Create(notif, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(1, -270, 1, -70)
+    }):Play()
+
+    -- Fade out after 2 seconds
+    task.delay(2, function()
+        TweenService:Create(notif, TweenInfo.new(0.3), {
+            BackgroundTransparency = 1
+        }):Play()
+        task.wait(0.3)
+        notif:Destroy()
+    end)
+end
 --// [WATERMARK + ANTI-AFK STATUS]
 local WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
 WatermarkGui.Name = "FinestWatermark"
@@ -61,15 +92,41 @@ local Content = Instance.new("Frame", Main); Content.Size = UDim2.new(1,-160,1,-
 --// MINIMIZE LOGIC FIXED
 local minimized = false
 Min.MouseButton1Click:Connect(function()
-    menuSound(); minimized = not minimized
+    menuSound()
+    minimized = not minimized
+
     if minimized then
-        Sidebar.Visible = false; Content.Visible = false
-        TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 200, 0, 45), BackgroundTransparency = 0.3}):Play()
-        Title.Size = UDim2.new(0, 120, 0, 45); Close.Position = UDim2.new(0, 160, 0, 0); Min.Position = UDim2.new(0, 130, 0, 0); Min.Text = "+"
+        Sidebar.Visible = false
+        Content.Visible = false
+        Close.Visible = false -- 👈 hide close button when minimized
+
+        TweenService:Create(
+            Main,
+            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 200, 0, 45), BackgroundTransparency = 0.3}
+        ):Play()
+
+        Title.Size = UDim2.new(0, 120, 0, 45)
+        Min.Position = UDim2.new(1, -45, 0, 0) -- 👈 move + button to far right
+        Min.Text = "+"
     else
-        local expand = TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 550, 0, 300), BackgroundTransparency = 0.2})
-        Title.Size = UDim2.new(1, 0, 0, 45); Close.Position = UDim2.new(1, -45, 0, 0); Min.Position = UDim2.new(1, -85, 0, 0); Min.Text = "-"
-        expand:Play(); expand.Completed:Wait(); Sidebar.Visible = true; Content.Visible = true
+        local expand = TweenService:Create(
+            Main,
+            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 550, 0, 300), BackgroundTransparency = 0.2}
+        )
+
+        Title.Size = UDim2.new(1, 0, 0, 45)
+        Close.Visible = true -- 👈 bring close button back
+        Close.Position = UDim2.new(1, -45, 0, 0)
+        Min.Position = UDim2.new(1, -85, 0, 0)
+        Min.Text = "-"
+
+        expand:Play()
+        expand.Completed:Wait()
+
+        Sidebar.Visible = true
+        Content.Visible = true
     end
 end)
 
@@ -92,6 +149,30 @@ local TrollPage = createTab("Troll", 185)
 local VisualPage = createTab("Visuals", 215)
 SpeedPage.Visible = true
 
+--// HOVER EFFECT FUNCTION
+local function applyHover(button, normalColor, hoverColor)
+    local originalSize = button.Size
+    button.AutoButtonColor = false
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = hoverColor,
+            Size = UDim2.new(
+                originalSize.X.Scale,
+                originalSize.X.Offset,
+                originalSize.Y.Scale,
+                originalSize.Y.Offset + 2
+            )
+        }):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = normalColor,
+            Size = originalSize
+        }):Play()
+    end)
+end
 local function addBox(parent, placeholder, y, default)
     local box = Instance.new("TextBox", parent); box.Size = UDim2.new(0,180,0,45); box.Position = UDim2.new(0,0,0,y); box.PlaceholderText = placeholder; box.Text = default or ""; box.BackgroundColor3 = Color3.fromRGB(60,0,100); box.TextColor3 = Color3.new(1,1,1); box.Font = Enum.Font.GothamBold; box.TextSize = 16
     Instance.new("UICorner", box).CornerRadius = UDim.new(0,10); return box
@@ -224,5 +305,72 @@ task.spawn(function()
     end
 end)
 
-UIS.InputBegan:Connect(function(input, processed) if not processed and input.KeyCode == Enum.KeyCode.RightControl then menuSound(); Main.Visible = not Main.Visible; WFrame.Visible = Main.Visible end end)
-menuSound()
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+
+    -- Menu Toggle (RightControl)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        menuSound()
+        Main.Visible = not Main.Visible
+        WFrame.Visible = Main.Visible
+    end
+
+    -- Triggerbot Toggle (T)
+    if input.KeyCode == Enum.KeyCode.T then
+        triggerbotEnabled = not triggerbotEnabled
+
+        TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
+        TriggerBtn.BackgroundColor3 = triggerbotEnabled
+            and Color3.fromRGB(0, 200, 100)
+            or Color3.fromRGB(120, 0, 200)
+
+         click()
+        notify("Triggerbot: " .. (triggerbotEnabled and "ON" or "OFF"), triggerbotEnabled)
+    end
+
+    -- Fly Toggle (F)
+    if input.KeyCode == Enum.KeyCode.F then
+        flying = not flying
+
+        FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
+        FlyBtn.BackgroundColor3 = flying
+            and Color3.fromRGB(0, 200, 100)
+            or Color3.fromRGB(120, 0, 200)
+
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+
+        if flying and hrp then
+            bv = Instance.new("BodyVelocity", hrp)
+            bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+
+            bg = Instance.new("BodyGyro", hrp)
+            bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+        else
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
+
+        click()
+        notify("Fly: " .. (flying and "ON" or "OFF"), flying)
+    end
+        -- ESP Toggle (E)
+    if input.KeyCode == Enum.KeyCode.E then
+        espEnabled = not espEnabled
+
+        EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        EspBtn.BackgroundColor3 = espEnabled
+            and Color3.fromRGB(0, 200, 100)
+            or Color3.fromRGB(120, 0, 200)
+
+        if espEnabled then
+            for _, p in pairs(Players:GetPlayers()) do
+                createESP(p)
+            end
+        else
+            removeESP()
+        end
+
+        click()
+        notify("ESP: " .. (espEnabled and "ON" or "OFF"), espEnabled)
+    end
+end)
