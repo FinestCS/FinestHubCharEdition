@@ -405,6 +405,39 @@ end
 local speedBox = addBox(SpeedPage, "Enter Speed", 0); local setSpeed = addBtn(SpeedPage, "Set Speed", 55)
 setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
 
+-- Speed presets (right side of existing controls)
+local presetData = {{"Walk", 16}, {"Sprint", 50}, {"Sonic", 150}}
+for i, preset in ipairs(presetData) do
+    local pb = Instance.new("TextButton", SpeedPage)
+    pb.Size = UDim2.new(0, 80, 0, 28)
+    pb.Position = UDim2.new(0, 190, 0, (i - 1) * 34)
+    pb.Text = preset[1]
+    pb.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
+    pb.TextColor3 = Color3.new(1, 1, 1)
+    pb.Font = Enum.Font.GothamBold
+    pb.TextSize = 13
+    Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 8)
+    -- subtle speed value label under button text
+    local sub = Instance.new("TextLabel", pb)
+    sub.Size = UDim2.new(1, 0, 0, 12)
+    sub.Position = UDim2.new(0, 0, 1, -13)
+    sub.BackgroundTransparency = 1
+    sub.Text = tostring(preset[2])
+    sub.Font = Enum.Font.Gotham
+    sub.TextSize = 10
+    sub.TextColor3 = Color3.fromRGB(180, 130, 255)
+    pb.MouseButton1Click:Connect(function()
+        click()
+        if player.Character then
+            player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = preset[2]
+            speedBox.Text = tostring(preset[2])
+            -- flash the button green briefly
+            pb.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+            TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90, 0, 160)}):Play()
+        end
+    end)
+end
+
 --// [FLY MODULE]
 local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55, "[F]")
 FlyBtn.MouseButton1Click:Connect(function()
