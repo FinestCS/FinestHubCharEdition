@@ -32,6 +32,7 @@ local function playSound(id, vol)
 end
 local function click() playSound(6895079853, 0.5) end
 local function menuSound() playSound(6031313768, 0.7) end
+
 --// NOTIFICATION SYSTEM
 local function notify(text, isOn)
     local notif = Instance.new("Frame", gui)
@@ -50,12 +51,10 @@ local function notify(text, isOn)
     label.TextSize = 16
     label.TextColor3 = Color3.new(1,1,1)
 
-    -- Slide in
     TweenService:Create(notif, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Position = UDim2.new(1, -270, 1, -70)
     }):Play()
 
-    -- Fade out after 2 seconds
     task.delay(2, function()
         TweenService:Create(notif, TweenInfo.new(0.3), {
             BackgroundTransparency = 1
@@ -64,6 +63,7 @@ local function notify(text, isOn)
         notif:Destroy()
     end)
 end
+
 --// [WATERMARK + ANTI-AFK STATUS]
 local WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
 WatermarkGui.Name = "FinestWatermark"
@@ -80,16 +80,78 @@ Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,0.5,-150)
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
 local Glow = Instance.new("UIStroke", Main); Glow.Color = Color3.fromRGB(170, 0, 255); Glow.Thickness = 3.5; Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+--// [NEW] PULSING GLOW ANIMATION
+local pulsing = true
+task.spawn(function()
+    while pulsing do
+        TweenService:Create(Glow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            Thickness = 1.5,
+            Color = Color3.fromRGB(220, 80, 255)
+        }):Play()
+        task.wait(1.2)
+        TweenService:Create(Glow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            Thickness = 4.5,
+            Color = Color3.fromRGB(130, 0, 255)
+        }):Play()
+        task.wait(1.2)
+    end
+end)
+
 local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255)
 local Close = Instance.new("TextButton", Main); Close.Size = UDim2.new(0,40,0,40); Close.Position = UDim2.new(1,-45,0,0); Close.Text = "X"; Close.BackgroundTransparency = 1; Close.TextColor3 = Color3.fromRGB(255,120,200); Close.Font = Enum.Font.GothamBold; Close.TextSize = 22
-Close.MouseButton1Click:Connect(function() menuSound(); WatermarkGui:Destroy(); gui:Destroy() end)
+-- Close wired below after FooterGui is declared
 local Min = Instance.new("TextButton", Main); Min.Size = UDim2.new(0,40,0,40); Min.Position = UDim2.new(1,-85,0,0); Min.Text = "-"; Min.BackgroundTransparency = 1; Min.TextColor3 = Color3.fromRGB(200,150,255); Min.Font = Enum.Font.GothamBold; Min.TextSize = 28
 
 local Sidebar = Instance.new("Frame", Main); Sidebar.Size = UDim2.new(0,140,1,-55); Sidebar.Position = UDim2.new(0,5,0,45); Sidebar.BackgroundColor3 = Color3.fromRGB(45,0,75); Sidebar.BackgroundTransparency = 0.3
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,14)
+
+-- [SEPARATE FOOTER BAR GUI] declared first so updateFooter and Close can reference it safely
+local FooterGui = Instance.new("ScreenGui", game.CoreGui)
+FooterGui.Name = "FinestFooter"
+
+local Footer = Instance.new("Frame", FooterGui)
+Footer.Size = UDim2.new(0, 380, 0, 26)
+Footer.Position = UDim2.new(1, -390, 0, 45)
+Footer.BackgroundColor3 = Color3.fromRGB(20, 0, 40)
+Footer.BackgroundTransparency = 0.3
+Instance.new("UICorner", Footer).CornerRadius = UDim.new(0, 6)
+local FooterStroke = Instance.new("UIStroke", Footer)
+FooterStroke.Color = Color3.fromRGB(170, 0, 255)
+FooterStroke.Thickness = 1.5
+
+local FooterLabel = Instance.new("TextLabel", Footer)
+FooterLabel.Size = UDim2.new(1, -10, 1, 0)
+FooterLabel.Position = UDim2.new(0, 8, 0, 0)
+FooterLabel.BackgroundTransparency = 1
+FooterLabel.Text = "<font color='#666688'>No features active</font>"
+FooterLabel.Font = Enum.Font.Gotham
+FooterLabel.TextSize = 12
+FooterLabel.TextColor3 = Color3.fromRGB(180, 130, 255)
+FooterLabel.TextXAlignment = Enum.TextXAlignment.Left
+FooterLabel.RichText = true
+
+-- active features tracker - defined after FooterLabel so it can reference it
+local activeFeatures = {}
+local function updateFooter()
+    local parts = {}
+    for feat, on in pairs(activeFeatures) do
+        if on then
+            table.insert(parts, "<font color='#BB66FF'>" .. feat .. "</font>")
+        end
+    end
+    if #parts == 0 then
+        FooterLabel.Text = "<font color='#666688'>No features active</font>"
+    else
+        FooterLabel.Text = "● " .. table.concat(parts, "  ·  ")
+    end
+end
+
+-- Close and Content declared after FooterGui so all references are valid
+Close.MouseButton1Click:Connect(function() pulsing = false; menuSound(); WatermarkGui:Destroy(); FooterGui:Destroy(); gui:Destroy() end)
+
 local Content = Instance.new("Frame", Main); Content.Size = UDim2.new(1,-160,1,-60); Content.Position = UDim2.new(0,155,0,50); Content.BackgroundTransparency = 1
 
---// MINIMIZE LOGIC FIXED
+--// MINIMIZE LOGIC
 local minimized = false
 Min.MouseButton1Click:Connect(function()
     menuSound()
@@ -98,7 +160,7 @@ Min.MouseButton1Click:Connect(function()
     if minimized then
         Sidebar.Visible = false
         Content.Visible = false
-        Close.Visible = false -- 👈 hide close button when minimized
+        Close.Visible = false
 
         TweenService:Create(
             Main,
@@ -107,7 +169,7 @@ Min.MouseButton1Click:Connect(function()
         ):Play()
 
         Title.Size = UDim2.new(0, 120, 0, 45)
-        Min.Position = UDim2.new(1, -45, 0, 0) -- 👈 move + button to far right
+        Min.Position = UDim2.new(1, -45, 0, 0)
         Min.Text = "+"
     else
         local expand = TweenService:Create(
@@ -117,7 +179,7 @@ Min.MouseButton1Click:Connect(function()
         )
 
         Title.Size = UDim2.new(1, 0, 0, 45)
-        Close.Visible = true -- 👈 bring close button back
+        Close.Visible = true
         Close.Position = UDim2.new(1, -45, 0, 0)
         Min.Position = UDim2.new(1, -85, 0, 0)
         Min.Text = "-"
@@ -127,27 +189,73 @@ Min.MouseButton1Click:Connect(function()
 
         Sidebar.Visible = true
         Content.Visible = true
+        Footer.Visible = true
     end
 end)
 
+--// [NEW] TAB ICONS MAP
+local tabIcons = {
+    ["Speed"]   = "⚡",
+    ["Fly"]     = "🕊",
+    ["Ghost"]   = "👻",
+    ["Trigger"] = "🎯",
+    ["TP"]      = "📍",
+    ["Players"] = "👥",
+    ["Troll"]   = "🌀",
+    ["Visuals"] = "👁",
+}
+
 local function createTab(name, y)
-    local btn = Instance.new("TextButton", Sidebar); btn.Size = UDim2.new(1,-10,0,28); btn.Position = UDim2.new(0,5,0,y); btn.Text = name; btn.BackgroundColor3 = Color3.fromRGB(70,0,110); btn.TextColor3 = Color3.fromRGB(230,200,255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
+    local icon = tabIcons[name] or ""
+    local btn = Instance.new("TextButton", Sidebar)
+    btn.Size = UDim2.new(1,-10,0,28); btn.Position = UDim2.new(0,5,0,y)
+    btn.Text = icon .. " " .. name
+    btn.BackgroundColor3 = Color3.fromRGB(70,0,110); btn.TextColor3 = Color3.fromRGB(230,200,255)
+    btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
     local page = Instance.new("Frame", Content); page.Size = UDim2.new(1,0,1,0); page.BackgroundTransparency = 1; page.Visible = false
-    btn.MouseButton1Click:Connect(function() click(); for _,v in pairs(Content:GetChildren()) do if v:IsA("Frame") then v.Visible = false end end; page.Visible = true end)
-    return page
+
+    btn.MouseButton1Click:Connect(function()
+        click()
+        -- dim all tabs first
+        for _, v in pairs(Sidebar:GetChildren()) do
+            if v:IsA("TextButton") then
+                TweenService:Create(v, TweenInfo.new(0.15), {
+                    BackgroundColor3 = Color3.fromRGB(70, 0, 110),
+                    TextColor3 = Color3.fromRGB(230, 200, 255)
+                }):Play()
+            end
+        end
+        -- highlight active tab
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Color3.fromRGB(160, 0, 255),
+            TextColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
+        -- show this page
+        for _,v in pairs(Content:GetChildren()) do if v:IsA("Frame") then v.Visible = false end end
+        page.Visible = true
+    end)
+
+    return page, btn
 end
 
---// ALL TABS (Adjusted spacing to fit menu)
-local SpeedPage = createTab("Speed", 5)
-local FlyPage = createTab("Fly", 35)
-local GhostPage = createTab("Ghost", 65)
-local TriggerPage = createTab("Trigger", 95)
-local TPPage = createTab("TP", 125)
-local PlayersPage = createTab("Players", 155)
-local TrollPage = createTab("Troll", 185)
-local VisualPage = createTab("Visuals", 215)
+--// ALL TABS
+local SpeedPage,   SpeedBtn   = createTab("Speed",   5)
+local FlyPage,     FlyTabBtn  = createTab("Fly",     35)
+local GhostPage,   GhostTabBtn= createTab("Ghost",   65)
+local TriggerPage, TrigTabBtn = createTab("Trigger", 95)
+local TPPage,      TPTabBtn   = createTab("TP",      125)
+local PlayersPage, PlTabBtn   = createTab("Players", 155)
+local TrollPage,   TrTabBtn   = createTab("Troll",   185)
+local VisualPage,  VisTabBtn  = createTab("Visuals", 215)
+
+-- highlight Speed as default active tab
 SpeedPage.Visible = true
+TweenService:Create(SpeedBtn, TweenInfo.new(0.15), {
+    BackgroundColor3 = Color3.fromRGB(160, 0, 255),
+    TextColor3 = Color3.fromRGB(255, 255, 255)
+}):Play()
 
 --// HOVER EFFECT FUNCTION
 local function applyHover(button, normalColor, hoverColor)
@@ -173,6 +281,7 @@ local function applyHover(button, normalColor, hoverColor)
         }):Play()
     end)
 end
+
 local function addBox(parent, placeholder, y, default)
     local box = Instance.new("TextBox", parent); box.Size = UDim2.new(0,180,0,45); box.Position = UDim2.new(0,0,0,y); box.PlaceholderText = placeholder; box.Text = default or ""; box.BackgroundColor3 = Color3.fromRGB(60,0,100); box.TextColor3 = Color3.new(1,1,1); box.Font = Enum.Font.GothamBold; box.TextSize = 16
     Instance.new("UICorner", box).CornerRadius = UDim.new(0,10); return box
@@ -190,7 +299,10 @@ setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then 
 local flying = false; local bv, bg
 local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55)
 FlyBtn.MouseButton1Click:Connect(function()
-    click(); flying = not flying; FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"; FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    click(); flying = not flying
+    FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
+    FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🕊 Fly"] = flying; updateFooter()
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if flying and hrp then bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e9, 1e9, 1e9); bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
     else if bv then bv:Destroy() end if bg then bg:Destroy() end end
@@ -198,7 +310,12 @@ end)
 
 --// [GHOST MODULE]
 local ghostEnabled = false; local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0)
-ghostBtn.MouseButton1Click:Connect(function() click(); ghostEnabled = not ghostEnabled; ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3 = ghostEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
+ghostBtn.MouseButton1Click:Connect(function()
+    click(); ghostEnabled = not ghostEnabled
+    ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"
+    ghostBtn.BackgroundColor3 = ghostEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["👻 Ghost"] = ghostEnabled; updateFooter()
+end)
 
 --// [TP MODULE + CLICK TP]
 local savedPosition, autoReturn = nil, false; local clickTpEnabled = false
@@ -207,8 +324,18 @@ autoTimeBox.Position = UDim2.new(0, 190, 0, 0); autoTimeBox.Size = UDim2.new(0, 
 local clickTpBtn = addBtn(TPPage, "Click TP: OFF", 165)
 saveBtn.MouseButton1Click:Connect(function() click(); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then savedPosition = player.Character.HumanoidRootPart.CFrame; saveBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 120); TweenService:Create(saveBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play() end end)
 tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame = savedPosition end end)
-autoBtn.MouseButton1Click:Connect(function() click(); autoReturn = not autoReturn; autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
-clickTpBtn.MouseButton1Click:Connect(function() click(); clickTpEnabled = not clickTpEnabled; clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"; clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200) end)
+autoBtn.MouseButton1Click:Connect(function()
+    click(); autoReturn = not autoReturn
+    autoBtn.Text = autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"
+    autoBtn.BackgroundColor3 = autoReturn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["📍 Auto-Return"] = autoReturn; updateFooter()
+end)
+clickTpBtn.MouseButton1Click:Connect(function()
+    click(); clickTpEnabled = not clickTpEnabled
+    clickTpBtn.Text = clickTpEnabled and "Click TP: ON" or "Click TP: OFF"
+    clickTpBtn.BackgroundColor3 = clickTpEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["📍 ClickTP"] = clickTpEnabled; updateFooter()
+end)
 mouse.Button1Down:Connect(function() if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0); playSound(12222242, 0.4) end end)
 
 --// [PLAYERS TAB]
@@ -228,7 +355,10 @@ task.spawn(function() while task.wait(5) do if PlayersPage.Visible then refreshP
 local spinning = false
 local FBtn = addBtn(TrollPage, "Fling: OFF", 0); local FPower = addBox(TrollPage, "Power", 55, "10000")
 FBtn.MouseButton1Click:Connect(function() 
-    click(); spinning = not spinning; FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"; FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    click(); spinning = not spinning
+    FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"
+    FBtn.BackgroundColor3 = spinning and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🌀 Fling"] = spinning; updateFooter()
     if not spinning and player.Character then
         local hrp = player.Character:FindFirstChild("HumanoidRootPart"); local hum = player.Character:FindFirstChildOfClass("Humanoid")
         if hrp then hrp.Velocity = Vector3.zero; hrp.RotVelocity = Vector3.zero; if hrp:FindFirstChild("FlingVel") then hrp.FlingVel:Destroy() end end
@@ -250,7 +380,13 @@ local function createESP(p)
 end
 local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Character then if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end end end end
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0)
-EspBtn.MouseButton1Click:Connect(function() click(); espEnabled = not espEnabled; EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"; EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200); if espEnabled then for _, p in pairs(Players:GetPlayers()) do createESP(p) end else removeESP() end end)
+EspBtn.MouseButton1Click:Connect(function()
+    click(); espEnabled = not espEnabled
+    EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["👁 ESP"] = espEnabled; updateFooter()
+    if espEnabled then for _, p in pairs(Players:GetPlayers()) do createESP(p) end else removeESP() end
+end)
 
 --// [ORIGINAL MASTER LOOP - UNTOUCHED]
 RunService.RenderStepped:Connect(function()
@@ -291,6 +427,7 @@ TriggerBtn.MouseButton1Click:Connect(function()
     click(); triggerbotEnabled = not triggerbotEnabled
     TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
     TriggerBtn.BackgroundColor3 = triggerbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🎯 Trigger"] = triggerbotEnabled; updateFooter()
 end)
 
 task.spawn(function()
@@ -308,68 +445,51 @@ end)
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
 
-    -- Menu Toggle (RightControl)
     if input.KeyCode == Enum.KeyCode.RightControl then
         menuSound()
         Main.Visible = not Main.Visible
         WFrame.Visible = Main.Visible
+        FooterGui.Enabled = Main.Visible
     end
 
-    -- Triggerbot Toggle (T)
     if input.KeyCode == Enum.KeyCode.T then
         triggerbotEnabled = not triggerbotEnabled
-
         TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
-        TriggerBtn.BackgroundColor3 = triggerbotEnabled
-            and Color3.fromRGB(0, 200, 100)
-            or Color3.fromRGB(120, 0, 200)
-
-         click()
+        TriggerBtn.BackgroundColor3 = triggerbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+        activeFeatures["🎯 Trigger"] = triggerbotEnabled; updateFooter()
+        click()
         notify("Triggerbot: " .. (triggerbotEnabled and "ON" or "OFF"), triggerbotEnabled)
     end
 
-    -- Fly Toggle (F)
     if input.KeyCode == Enum.KeyCode.F then
         flying = not flying
-
         FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
-        FlyBtn.BackgroundColor3 = flying
-            and Color3.fromRGB(0, 200, 100)
-            or Color3.fromRGB(120, 0, 200)
-
+        FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+        activeFeatures["🕊 Fly"] = flying; updateFooter()
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-
         if flying and hrp then
             bv = Instance.new("BodyVelocity", hrp)
             bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-
             bg = Instance.new("BodyGyro", hrp)
             bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
         else
             if bv then bv:Destroy() end
             if bg then bg:Destroy() end
         end
-
         click()
         notify("Fly: " .. (flying and "ON" or "OFF"), flying)
     end
-        -- ESP Toggle (E)
+
     if input.KeyCode == Enum.KeyCode.E then
         espEnabled = not espEnabled
-
         EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
-        EspBtn.BackgroundColor3 = espEnabled
-            and Color3.fromRGB(0, 200, 100)
-            or Color3.fromRGB(120, 0, 200)
-
+        EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+        activeFeatures["👁 ESP"] = espEnabled; updateFooter()
         if espEnabled then
-            for _, p in pairs(Players:GetPlayers()) do
-                createESP(p)
-            end
+            for _, p in pairs(Players:GetPlayers()) do createESP(p) end
         else
             removeESP()
         end
-
         click()
         notify("ESP: " .. (espEnabled and "ON" or "OFF"), espEnabled)
     end
