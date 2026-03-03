@@ -504,13 +504,19 @@ end)
 --// [VISUALS]
 local function createESP(p)
     if p == player then return end
-    local function apply()
-        local char = p.Character or p.CharacterAdded:Wait(); local hrp = char:WaitForChild("HumanoidRootPart", 5); if not hrp then return end
-        local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = Color3.fromRGB(170, 0, 255); h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
-        local b = Instance.new("BillboardGui", char); b.Name = "FinestName"; b.Size = UDim2.new(0, 200, 0, 50); b.Adornee = hrp; b.AlwaysOnTop = true; b.ExtentsOffset = Vector3.new(0, 3, 0)
-        local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.fromRGB(190, 100, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 14
-    end
-    p.CharacterAdded:Connect(apply); if p.Character then apply() end
+    task.spawn(function()
+        local function apply()
+            local char = p.Character or p.CharacterAdded:Wait()
+            local hrp = char:WaitForChild("HumanoidRootPart", 5)
+            if not hrp then return end
+            if char:FindFirstChild("FinestESP") then return end -- avoid duplicates
+            local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = Color3.fromRGB(170, 0, 255); h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
+            local b = Instance.new("BillboardGui", char); b.Name = "FinestName"; b.Size = UDim2.new(0, 200, 0, 50); b.Adornee = hrp; b.AlwaysOnTop = true; b.ExtentsOffset = Vector3.new(0, 3, 0)
+            local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.fromRGB(190, 100, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 14
+        end
+        p.CharacterAdded:Connect(function() task.spawn(apply) end)
+        apply()
+    end)
 end
 local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Character then if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end end end end
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0, "[E]")
@@ -519,7 +525,7 @@ EspBtn.MouseButton1Click:Connect(function()
     EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
     EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     activeFeatures["👁 ESP"] = espEnabled; updateFooter()
-    if espEnabled then for _, p in pairs(Players:GetPlayers()) do createESP(p) end else removeESP() end
+    if espEnabled then task.spawn(function() for _, p in pairs(Players:GetPlayers()) do createESP(p) end end) else removeESP() end
 end)
 
 --// [ORIGINAL MASTER LOOP]
@@ -628,7 +634,7 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
         EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
         activeFeatures["👁 ESP"] = espEnabled; updateFooter()
         if espEnabled then
-            for _, p in pairs(Players:GetPlayers()) do createESP(p) end
+            task.spawn(function() for _, p in pairs(Players:GetPlayers()) do createESP(p) end end)
         else
             removeESP()
         end
