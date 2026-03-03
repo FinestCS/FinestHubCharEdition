@@ -107,6 +107,7 @@ local function onClose()
     pcall(function()
         if game.CoreGui:FindFirstChild("FinestCrosshair") then game.CoreGui.FinestCrosshair:Destroy() end
         if game.CoreGui:FindFirstChild("FinestParticles") then game.CoreGui.FinestParticles:Destroy() end
+        if game.CoreGui:FindFirstChild("FinestFOVCircle") then game.CoreGui.FinestFOVCircle:Destroy() end
     end)
 end
 
@@ -418,7 +419,7 @@ end)
 --// [NEW] TAB ICONS MAP
 local tabIcons = {
     ["Misc"]     = "⚙️",
-    ["Fly"]      = "🕊",
+    ["Movement"] = "🏃",
     ["Ghost"]    = "👻",
     ["FPS"]      = "🎮",
     ["TP"]       = "📍",
@@ -475,8 +476,8 @@ local function createTab(name, y)
 end
 
 --// ALL TABS
-local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",     5)
-local FlyPage,     FlyTabBtn,   FlyStroke     = createTab("Fly",      35)
+local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",      5)
+local MovePage,    MoveTabBtn,  MoveStroke    = createTab("Movement",  35)
 local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",    65)
 local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",      95)
 local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",       125)
@@ -484,6 +485,8 @@ local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players",  155)
 local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",    185)
 local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals",  215)
 local SettingsPage, SetTabBtn,  SetStroke     = createTab("Settings", 245)
+-- FlyPage is now an alias for MovePage for backward compat
+local FlyPage = MovePage
 
 -- highlight Misc as default active tab + show its glow
 MiscPage.Visible = true
@@ -542,46 +545,11 @@ local function addBtn(parent, text, y, keybind)
 end
 
 --// [MISC MODULE]
-local speedBox = addBox(MiscPage, "Enter Speed", 0); local setSpeed = addBtn(MiscPage, "Set Speed", 55)
-setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
-
--- Speed presets (right side of existing controls)
-local presetData = {{"Walk", 16}, {"Sprint", 50}, {"Sonic", 150}}
-for i, preset in ipairs(presetData) do
-    local pb = Instance.new("TextButton", MiscPage)
-    pb.Size = UDim2.new(0, 80, 0, 28)
-    pb.Position = UDim2.new(0, 190, 0, (i - 1) * 34)
-    pb.Text = preset[1]
-    pb.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
-    pb.TextColor3 = Color3.new(1, 1, 1)
-    pb.Font = Enum.Font.GothamBold
-    pb.TextSize = 13
-    Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 8)
-    -- subtle speed value label under button text
-    local sub = Instance.new("TextLabel", pb)
-    sub.Size = UDim2.new(1, 0, 0, 12)
-    sub.Position = UDim2.new(0, 0, 1, -13)
-    sub.BackgroundTransparency = 1
-    sub.Text = tostring(preset[2])
-    sub.Font = Enum.Font.Gotham
-    sub.TextSize = 10
-    sub.TextColor3 = Color3.fromRGB(180, 130, 255)
-    pb.MouseButton1Click:Connect(function()
-        click()
-        if player.Character then
-            player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = preset[2]
-            speedBox.Text = tostring(preset[2])
-            pb.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-            TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90, 0, 160)}):Play()
-        end
-    end)
-end
-
 -- Health changer
-local healthBox = addBox(MiscPage, "Set Health", 110)
-local maxHealthBox = addBox(MiscPage, "Max HP", 110)
-maxHealthBox.Position = UDim2.new(0, 190, 0, 110); maxHealthBox.Size = UDim2.new(0, 95, 0, 45)
-local setHealthBtn = addBtn(MiscPage, "Set Health", 165)
+local healthBox = addBox(MiscPage, "Set Health", 0)
+local maxHealthBox = addBox(MiscPage, "Max HP", 0)
+maxHealthBox.Position = UDim2.new(0, 190, 0, 0); maxHealthBox.Size = UDim2.new(0, 95, 0, 45)
+local setHealthBtn = addBtn(MiscPage, "Set Health", 55)
 setHealthBtn.MouseButton1Click:Connect(function()
     click()
     local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -596,45 +564,90 @@ setHealthBtn.MouseButton1Click:Connect(function()
     end
 end)
 
---// [FLY MODULE]
-local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55, "[F]")
+--// [MOVEMENT MODULE]
+-- Walk Speed
+local moveScroll = Instance.new("ScrollingFrame", MovePage)
+moveScroll.Size = UDim2.new(1, 0, 1, 0)
+moveScroll.BackgroundTransparency = 1
+moveScroll.ScrollBarThickness = 3
+moveScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
+moveScroll.CanvasSize = UDim2.new(0, 0, 0, 270)
+
+local function moveBtn(text, y, kb) return addBtn(moveScroll, text, y, kb) end
+local function moveBox(ph, y, def) return addBox(moveScroll, ph, y, def) end
+
+-- Section label helper
+local function sectionLabel(text, y)
+    local lbl = Instance.new("TextLabel", moveScroll)
+    lbl.Size = UDim2.new(1, 0, 0, 18)
+    lbl.Position = UDim2.new(0, 0, 0, y)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextColor3 = Color3.fromRGB(170, 100, 255)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+-- Walk Speed
+sectionLabel("── Walk Speed", 0)
+local speedBox = moveBox("Enter Speed", 20, "16")
+local setSpeed = moveBtn("Set Speed", 73)
+setSpeed.MouseButton1Click:Connect(function()
+    click()
+    if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end
+end)
+local presetData = {{"Walk", 16}, {"Sprint", 50}, {"Sonic", 150}}
+for i, preset in ipairs(presetData) do
+    local pb = Instance.new("TextButton", moveScroll)
+    pb.Size = UDim2.new(0, 78, 0, 28); pb.Position = UDim2.new(0, 190, 0, 20 + (i-1)*34)
+    pb.Text = preset[1]; pb.BackgroundColor3 = Color3.fromRGB(90,0,160)
+    pb.TextColor3 = Color3.new(1,1,1); pb.Font = Enum.Font.GothamBold; pb.TextSize = 13
+    Instance.new("UICorner", pb).CornerRadius = UDim.new(0,8)
+    local sub = Instance.new("TextLabel", pb); sub.Size = UDim2.new(1,0,0,12); sub.Position = UDim2.new(0,0,1,-13)
+    sub.BackgroundTransparency = 1; sub.Text = tostring(preset[2]); sub.Font = Enum.Font.Gotham; sub.TextSize = 10; sub.TextColor3 = Color3.fromRGB(180,130,255)
+    pb.MouseButton1Click:Connect(function()
+        click(); speedBox.Text = tostring(preset[2])
+        if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = preset[2] end
+        pb.BackgroundColor3 = Color3.fromRGB(0,200,100)
+        TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90,0,160)}):Play()
+    end)
+end
+
+-- Fly
+sectionLabel("── Fly", 130)
+local FlySpeedBox = moveBox("Fly Speed", 150, "70")
+local FlyBtn = moveBtn("Toggle Fly: OFF", 203, "[F]")
 FlyBtn.MouseButton1Click:Connect(function()
     click(); flying = not flying
     FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
-    FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
     activeFeatures["🕊 Fly"] = flying; updateFooter()
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if flying and hrp then bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e9, 1e9, 1e9); bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-    else if bv then bv:Destroy() end if bg then bg:Destroy() end end
+    if flying and hrp then
+        bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1e9,1e9,1e9)
+        bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
+    else
+        if bv then bv:Destroy() end; if bg then bg:Destroy() end
+    end
 end)
-
--- Fly speed presets (right side of existing controls)
 local flyPresetData = {{"Slow", 30}, {"Normal", 70}, {"Fast", 150}}
 for i, preset in ipairs(flyPresetData) do
-    local pb = Instance.new("TextButton", FlyPage)
-    pb.Size = UDim2.new(0, 80, 0, 28)
-    pb.Position = UDim2.new(0, 190, 0, (i - 1) * 34)
-    pb.Text = preset[1]
-    pb.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
-    pb.TextColor3 = Color3.new(1, 1, 1)
-    pb.Font = Enum.Font.GothamBold
-    pb.TextSize = 13
-    Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 8)
-    local sub = Instance.new("TextLabel", pb)
-    sub.Size = UDim2.new(1, 0, 0, 12)
-    sub.Position = UDim2.new(0, 0, 1, -13)
-    sub.BackgroundTransparency = 1
-    sub.Text = tostring(preset[2])
-    sub.Font = Enum.Font.Gotham
-    sub.TextSize = 10
-    sub.TextColor3 = Color3.fromRGB(180, 130, 255)
+    local pb = Instance.new("TextButton", moveScroll)
+    pb.Size = UDim2.new(0, 78, 0, 28); pb.Position = UDim2.new(0, 190, 0, 150 + (i-1)*34)
+    pb.Text = preset[1]; pb.BackgroundColor3 = Color3.fromRGB(90,0,160)
+    pb.TextColor3 = Color3.new(1,1,1); pb.Font = Enum.Font.GothamBold; pb.TextSize = 13
+    Instance.new("UICorner", pb).CornerRadius = UDim.new(0,8)
+    local sub = Instance.new("TextLabel", pb); sub.Size = UDim2.new(1,0,0,12); sub.Position = UDim2.new(0,0,1,-13)
+    sub.BackgroundTransparency = 1; sub.Text = tostring(preset[2]); sub.Font = Enum.Font.Gotham; sub.TextSize = 10; sub.TextColor3 = Color3.fromRGB(180,130,255)
     pb.MouseButton1Click:Connect(function()
-        click()
-        FlySpeedBox.Text = tostring(preset[2])
-        pb.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-        TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90, 0, 160)}):Play()
+        click(); FlySpeedBox.Text = tostring(preset[2])
+        pb.BackgroundColor3 = Color3.fromRGB(0,200,100)
+        TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90,0,160)}):Play()
     end)
 end
+
+-- Camera FOV removed
 
 --// [GHOST MODULE]
 local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0, "[G]")
@@ -1376,6 +1389,72 @@ CrosshairBtn.MouseButton1Click:Connect(function()
     notify("Crosshair: " .. (crosshairEnabled and "ON" or "OFF"), crosshairEnabled)
 end)
 
+--// [AIMBOT FOV CIRCLE]
+-- A circle drawn on screen showing the aimbot's lock radius. Visible only when aimbot is ON.
+local fovCircleGui = Instance.new("ScreenGui", game.CoreGui)
+fovCircleGui.Name = "FinestFOVCircle"
+fovCircleGui.ResetOnSpawn = false
+fovCircleGui.IgnoreGuiInset = true
+
+local fovCircleFrame = Instance.new("Frame", fovCircleGui)
+fovCircleFrame.BackgroundTransparency = 1
+fovCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircleFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircleFrame.Visible = false
+
+local aimbotFovRadius = 120  -- default pixel radius, matches aimbot lock range display
+fovCircleFrame.Size = UDim2.new(0, aimbotFovRadius * 2, 0, aimbotFovRadius * 2)
+
+-- Draw circle using many thin frames around the perimeter
+local circleSegments = 64
+local circleFrames = {}
+for i = 1, circleSegments do
+    local seg = Instance.new("Frame", fovCircleFrame)
+    seg.Size = UDim2.new(0, 3, 0, 3)
+    seg.BackgroundColor3 = Color3.fromRGB(200, 100, 255)
+    seg.BackgroundTransparency = 0.3
+    seg.BorderSizePixel = 0
+    seg.AnchorPoint = Vector2.new(0.5, 0.5)
+    Instance.new("UICorner", seg).CornerRadius = UDim.new(1, 0)
+    -- position each dot around the circle
+    local angle = (i / circleSegments) * math.pi * 2
+    local cx = 0.5 + math.cos(angle) * 0.5
+    local cy = 0.5 + math.sin(angle) * 0.5
+    seg.Position = UDim2.new(cx, 0, cy, 0)
+    table.insert(circleFrames, seg)
+end
+
+-- FOV radius slider in FPS tab
+local fovCircleLabel = Instance.new("TextLabel", FPSPage)
+fovCircleLabel.Size = UDim2.new(0, 180, 0, 16)
+fovCircleLabel.Position = UDim2.new(0, 0, 0, 185)
+fovCircleLabel.BackgroundTransparency = 1
+fovCircleLabel.Text = "Aimbot FOV Radius: 120px"
+fovCircleLabel.Font = Enum.Font.Gotham
+fovCircleLabel.TextSize = 11
+fovCircleLabel.TextColor3 = Color3.fromRGB(170, 120, 255)
+fovCircleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local fovRadiusMinus = Instance.new("TextButton", FPSPage)
+fovRadiusMinus.Size = UDim2.new(0, 28, 0, 22); fovRadiusMinus.Position = UDim2.new(0, 0, 0, 205)
+fovRadiusMinus.Text = "−"; fovRadiusMinus.BackgroundColor3 = Color3.fromRGB(80,0,140)
+fovRadiusMinus.TextColor3 = Color3.new(1,1,1); fovRadiusMinus.Font = Enum.Font.GothamBold; fovRadiusMinus.TextSize = 16
+Instance.new("UICorner", fovRadiusMinus).CornerRadius = UDim.new(0,6)
+
+local fovRadiusPlus = Instance.new("TextButton", FPSPage)
+fovRadiusPlus.Size = UDim2.new(0, 28, 0, 22); fovRadiusPlus.Position = UDim2.new(0, 32, 0, 205)
+fovRadiusPlus.Text = "+"; fovRadiusPlus.BackgroundColor3 = Color3.fromRGB(80,0,140)
+fovRadiusPlus.TextColor3 = Color3.new(1,1,1); fovRadiusPlus.Font = Enum.Font.GothamBold; fovRadiusPlus.TextSize = 16
+Instance.new("UICorner", fovRadiusPlus).CornerRadius = UDim.new(0,6)
+
+local function setFovRadius(r)
+    aimbotFovRadius = math.clamp(r, 30, 400)
+    fovCircleFrame.Size = UDim2.new(0, aimbotFovRadius * 2, 0, aimbotFovRadius * 2)
+    fovCircleLabel.Text = "Aimbot FOV Radius: " .. aimbotFovRadius .. "px"
+end
+fovRadiusMinus.MouseButton1Click:Connect(function() click(); setFovRadius(aimbotFovRadius - 10) end)
+fovRadiusPlus.MouseButton1Click:Connect(function() click(); setFovRadius(aimbotFovRadius + 10) end)
+
 -- Track Mouse2 (right mouse button) hold state
 local altHeld = false
 
@@ -1394,6 +1473,7 @@ AimbotBtn.MouseButton1Click:Connect(function()
     click(); aimbotEnabled = not aimbotEnabled
     AimbotBtn.Text = aimbotEnabled and "Aimbot: ON (Hold M2)" or "Aimbot: OFF"
     AimbotBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    fovCircleFrame.Visible = aimbotEnabled  -- show circle when aimbot is on
     activeFeatures["🎯 Aimbot"] = aimbotEnabled; updateFooter()
     notify("Aimbot: " .. (aimbotEnabled and "ON — Hold Mouse2" or "OFF"), aimbotEnabled)
 end)
@@ -1414,7 +1494,8 @@ task.spawn(function()
                     if onScreen then
                         local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
                         local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                        if dist < closestDist then
+                        -- only lock if within the FOV circle radius
+                        if dist < aimbotFovRadius and dist < closestDist then
                             closestDist = dist
                             closestPlayer = p
                         end
