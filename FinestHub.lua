@@ -450,6 +450,34 @@ FlyBtn.MouseButton1Click:Connect(function()
     else if bv then bv:Destroy() end if bg then bg:Destroy() end end
 end)
 
+-- Fly speed presets (right side of existing controls)
+local flyPresetData = {{"Slow", 30}, {"Normal", 70}, {"Fast", 150}}
+for i, preset in ipairs(flyPresetData) do
+    local pb = Instance.new("TextButton", FlyPage)
+    pb.Size = UDim2.new(0, 80, 0, 28)
+    pb.Position = UDim2.new(0, 190, 0, (i - 1) * 34)
+    pb.Text = preset[1]
+    pb.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
+    pb.TextColor3 = Color3.new(1, 1, 1)
+    pb.Font = Enum.Font.GothamBold
+    pb.TextSize = 13
+    Instance.new("UICorner", pb).CornerRadius = UDim.new(0, 8)
+    local sub = Instance.new("TextLabel", pb)
+    sub.Size = UDim2.new(1, 0, 0, 12)
+    sub.Position = UDim2.new(0, 0, 1, -13)
+    sub.BackgroundTransparency = 1
+    sub.Text = tostring(preset[2])
+    sub.Font = Enum.Font.Gotham
+    sub.TextSize = 10
+    sub.TextColor3 = Color3.fromRGB(180, 130, 255)
+    pb.MouseButton1Click:Connect(function()
+        click()
+        FlySpeedBox.Text = tostring(preset[2])
+        pb.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90, 0, 160)}):Play()
+    end)
+end
+
 --// [GHOST MODULE]
 local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0, "[G]")
 ghostBtn.MouseButton1Click:Connect(function()
