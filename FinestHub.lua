@@ -76,6 +76,20 @@ local function onClose()
     freezeTarget = nil
     -- reset infiniteJump so it doesn't persist after close
     infiniteJump = false
+    -- restore character visibility on close
+    if invisEnabled then
+        invisEnabled = false
+        if player.Character then
+            for _, part in pairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") or part:IsA("Decal") then
+                    part.Transparency = part.Name == "HumanoidRootPart" and 1 or 0
+                elseif part:IsA("Accessory") then
+                    local handle = part:FindFirstChild("Handle")
+                    if handle then handle.Transparency = 0 end
+                end
+            end
+        end
+    end
     workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
     local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
@@ -326,7 +340,7 @@ Sidebar.BackgroundColor3 = Color3.fromRGB(45,0,75)
 Sidebar.BackgroundTransparency = 0.3
 Sidebar.ScrollBarThickness = 3
 Sidebar.ScrollBarImageColor3 = Color3.fromRGB(130, 0, 200)
-Sidebar.CanvasSize = UDim2.new(0, 0, 0, 285) -- 9 tabs * 30px + padding
+Sidebar.CanvasSize = UDim2.new(0, 0, 0, 255) -- 8 tabs * 30px + padding
 Sidebar.BorderSizePixel = 0
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,14)
 
@@ -422,7 +436,6 @@ end)
 local tabIcons = {
     ["Misc"]     = "⚙️",
     ["Movement"] = "🏃",
-    ["Ghost"]    = "👻",
     ["FPS"]      = "🎮",
     ["TP"]       = "📍",
     ["Players"]  = "👥",
@@ -478,25 +491,26 @@ local function createTab(name, y)
 end
 
 --// ALL TABS
-local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",      5)
-local MovePage,    MoveTabBtn,  MoveStroke    = createTab("Movement",  35)
-local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",    65)
-local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",      95)
-local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",       125)
-local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players",  155)
-local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",    185)
-local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals",  215)
-local SettingsPage, SetTabBtn,  SetStroke     = createTab("Settings", 245)
--- FlyPage is now an alias for MovePage for backward compat
+local MovePage,    MoveTabBtn,  MoveStroke    = createTab("Movement",   5)
+local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",       35)
+local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",        65)
+local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players",   95)
+local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",    125)
+local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals",  155)
+local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",     185)
+local SettingsPage, SetTabBtn,  SetStroke     = createTab("Settings", 215)
+-- FlyPage alias for MovePage for backward compat
 local FlyPage = MovePage
+-- GhostPage alias for MiscPage since ghost moved there
+local GhostPage = MiscPage
 
--- highlight Misc as default active tab + show its glow
-MiscPage.Visible = true
-TweenService:Create(MiscBtn, TweenInfo.new(0.15), {
+-- highlight Movement as default active tab + show its glow
+MovePage.Visible = true
+TweenService:Create(MoveTabBtn, TweenInfo.new(0.15), {
     BackgroundColor3 = Color3.fromRGB(130, 0, 210),
     TextColor3 = Color3.fromRGB(255, 255, 255)
 }):Play()
-TweenService:Create(MiscStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play()
+TweenService:Create(MoveStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play()
 
 --// HOVER EFFECT FUNCTION
 local function applyHover(button, normalColor, hoverColor)
@@ -563,6 +577,43 @@ setHealthBtn.MouseButton1Click:Connect(function()
         setHealthBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
         TweenService:Create(setHealthBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play()
         notify("Health: " .. math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth), true)
+    end
+end)
+
+-- Invisible Character
+local invisEnabled = false
+local InvisBtn = addBtn(MiscPage, "Invisible: OFF", 110)
+InvisBtn.MouseButton1Click:Connect(function()
+    click()
+    invisEnabled = not invisEnabled
+    InvisBtn.Text = invisEnabled and "Invisible: ON" or "Invisible: OFF"
+    InvisBtn.BackgroundColor3 = invisEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["👻 Invis"] = invisEnabled; updateFooter()
+    local char = player.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                part.Transparency = invisEnabled and 1 or (part.Name == "HumanoidRootPart" and 1 or 0)
+            elseif part:IsA("Accessory") then
+                local handle = part:FindFirstChild("Handle")
+                if handle then handle.Transparency = invisEnabled and 1 or 0 end
+            end
+        end
+    end
+    notify("Invisible: " .. (invisEnabled and "ON" or "OFF"), invisEnabled)
+end)
+
+-- Re-apply invisibility on respawn
+player.CharacterAdded:Connect(function(char)
+    if not invisEnabled then return end
+    task.wait(0.5) -- wait for character to fully load
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("Decal") then
+            part.Transparency = part.Name == "HumanoidRootPart" and 1 or 1
+        elseif part:IsA("Accessory") then
+            local handle = part:FindFirstChild("Handle")
+            if handle then handle.Transparency = 1 end
+        end
     end
 end)
 
@@ -674,8 +725,8 @@ UIS.JumpRequest:Connect(function()
     end
 end)
 
---// [GHOST MODULE]
-local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0, "[G]")
+--// [GHOST MODULE] (moved to Misc tab)
+local ghostBtn = addBtn(MiscPage, "Ghost: OFF", 165, "[G]")
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled = not ghostEnabled
     ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"
