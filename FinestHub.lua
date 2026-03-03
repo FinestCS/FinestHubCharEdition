@@ -291,7 +291,7 @@ end)
 
 --// [NEW] TAB ICONS MAP
 local tabIcons = {
-    ["Speed"]   = "⚡",
+    ["Misc"]    = "⚙️",
     ["Fly"]     = "🕊",
     ["Ghost"]   = "👻",
     ["Trigger"] = "🎯",
@@ -348,7 +348,7 @@ local function createTab(name, y)
 end
 
 --// ALL TABS
-local SpeedPage,   SpeedBtn,    SpeedStroke   = createTab("Speed",   5)
+local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",    5)
 local FlyPage,     FlyTabBtn,   FlyStroke     = createTab("Fly",     35)
 local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",   65)
 local TriggerPage, TrigTabBtn,  TrigStroke    = createTab("Trigger", 95)
@@ -357,13 +357,13 @@ local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players", 155)
 local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",   185)
 local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals", 215)
 
--- highlight Speed as default active tab + show its glow
-SpeedPage.Visible = true
-TweenService:Create(SpeedBtn, TweenInfo.new(0.15), {
+-- highlight Misc as default active tab + show its glow
+MiscPage.Visible = true
+TweenService:Create(MiscBtn, TweenInfo.new(0.15), {
     BackgroundColor3 = Color3.fromRGB(130, 0, 210),
     TextColor3 = Color3.fromRGB(255, 255, 255)
 }):Play()
-TweenService:Create(SpeedStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play()
+TweenService:Create(MiscStroke, TweenInfo.new(0.15), { Transparency = 0 }):Play()
 
 --// HOVER EFFECT FUNCTION
 local function applyHover(button, normalColor, hoverColor)
@@ -413,14 +413,14 @@ local function addBtn(parent, text, y, keybind)
     return btn
 end
 
---// [SPEED MODULE]
-local speedBox = addBox(SpeedPage, "Enter Speed", 0); local setSpeed = addBtn(SpeedPage, "Set Speed", 55)
+--// [MISC MODULE]
+local speedBox = addBox(MiscPage, "Enter Speed", 0); local setSpeed = addBtn(MiscPage, "Set Speed", 55)
 setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
 
 -- Speed presets (right side of existing controls)
 local presetData = {{"Walk", 16}, {"Sprint", 50}, {"Sonic", 150}}
 for i, preset in ipairs(presetData) do
-    local pb = Instance.new("TextButton", SpeedPage)
+    local pb = Instance.new("TextButton", MiscPage)
     pb.Size = UDim2.new(0, 80, 0, 28)
     pb.Position = UDim2.new(0, 190, 0, (i - 1) * 34)
     pb.Text = preset[1]
@@ -443,12 +443,30 @@ for i, preset in ipairs(presetData) do
         if player.Character then
             player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = preset[2]
             speedBox.Text = tostring(preset[2])
-            -- flash the button green briefly
             pb.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
             TweenService:Create(pb, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(90, 0, 160)}):Play()
         end
     end)
 end
+
+-- Health changer
+local healthBox = addBox(MiscPage, "Set Health", 110)
+local maxHealthBox = addBox(MiscPage, "Max HP", 110)
+maxHealthBox.Position = UDim2.new(0, 190, 0, 110); maxHealthBox.Size = UDim2.new(0, 95, 0, 45)
+local setHealthBtn = addBtn(MiscPage, "Set Health", 165)
+setHealthBtn.MouseButton1Click:Connect(function()
+    click()
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        local newMax = tonumber(maxHealthBox.Text)
+        local newHP = tonumber(healthBox.Text)
+        if newMax and newMax > 0 then hum.MaxHealth = newMax end
+        if newHP then hum.Health = math.clamp(newHP, 0, hum.MaxHealth) end
+        setHealthBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        TweenService:Create(setHealthBtn, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(120, 0, 200)}):Play()
+        notify("Health: " .. math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth), true)
+    end
+end)
 
 --// [FLY MODULE]
 local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55, "[F]")
@@ -702,12 +720,23 @@ local function applyHealthBar(char)
     local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
     local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
     local hbGui = Instance.new("BillboardGui", char); hbGui.Name = "FinestHealthBar"
-    hbGui.Size = UDim2.new(0, 80, 0, 10); hbGui.Adornee = hrp; hbGui.AlwaysOnTop = true
-    hbGui.ExtentsOffset = Vector3.new(0, 2.2, 0)
-    local back = Instance.new("Frame", hbGui); back.Size = UDim2.new(1,0,1,0); back.BackgroundColor3 = Color3.fromRGB(40,0,0)
-    Instance.new("UICorner", back).CornerRadius = UDim.new(1,0)
-    local bar = Instance.new("Frame", back); bar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,1,0); bar.BackgroundColor3 = Color3.fromRGB(0,220,80)
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+    hbGui.Adornee = hrp; hbGui.AlwaysOnTop = true
+    hbGui.Size = UDim2.new(0, 4, 0, 4)          -- small anchor size in studs
+    hbGui.SizeOffset = Vector2.new(0, 0)
+    hbGui.StudsOffset = Vector3.new(0, 3.2, 0)   -- fixed position above head in studs
+    hbGui.ExtentsOffsetWorldSpace = Vector3.new(0, 0, 0)
+    -- actual pixel size of the bar lives here, always fixed on screen
+    local container = Instance.new("Frame", hbGui)
+    container.Size = UDim2.new(0, 60, 0, 7)
+    container.Position = UDim2.new(0.5, -30, 0.5, -3)
+    container.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+    container.BorderSizePixel = 0
+    Instance.new("UICorner", container).CornerRadius = UDim.new(1, 0)
+    local bar = Instance.new("Frame", container)
+    bar.Size = UDim2.new(math.clamp(hum.Health/hum.MaxHealth, 0, 1), 0, 1, 0)
+    bar.BackgroundColor3 = Color3.fromRGB(0, 220, 80)
+    bar.BorderSizePixel = 0
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
     hum:GetPropertyChangedSignal("Health"):Connect(function()
         local pct = math.clamp(hum.Health/hum.MaxHealth, 0, 1)
         bar.Size = UDim2.new(pct, 0, 1, 0)
@@ -959,7 +988,20 @@ end)
 --// [CLOSE BUTTON - wired last so glowTween, WatermarkGui, FooterGui, gui are all guaranteed in scope]
 Close.MouseButton1Click:Connect(function()
     onClose()
-    removeESP()
+    -- clean up ESP, health bars, skeleton
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            if p.Character:FindFirstChild("FinestESP") then p.Character.FinestESP:Destroy() end
+            if p.Character:FindFirstChild("FinestName") then p.Character.FinestName:Destroy() end
+            if p.Character:FindFirstChild("FinestHealthBar") then p.Character.FinestHealthBar:Destroy() end
+            if p.Character:FindFirstChild("FinestSkeleton") then p.Character.FinestSkeleton:Destroy() end
+        end
+    end
+    -- restore lighting if night mode was on
+    local existingNight = game:GetService("Lighting"):FindFirstChild("FinestNight")
+    if existingNight then existingNight:Destroy() end
+    game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
+    game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
     glowTween:Cancel()
     menuSound()
     WatermarkGui:Destroy()
