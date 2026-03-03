@@ -9,8 +9,13 @@ local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
+
+-- Save original lighting so night mode can restore properly
+local origAmbient = Lighting.Ambient
+local origOutdoor = Lighting.OutdoorAmbient
 
 --// [SHUTDOWN SYSTEM]
 local closed = false
@@ -20,6 +25,7 @@ local flying, bv, bg = false, nil, nil
 local ghostEnabled = false
 local spinning = false
 local triggerbotEnabled = false
+local aimbotEnabled = false
 local espEnabled = false
 local orbiting = false
 local orbitTarget = nil
@@ -28,6 +34,11 @@ local healthBarEnabled = false
 local skeletonEnabled = false
 local nightModeEnabled = false
 local chatSpamming = false
+local WatermarkGui -- forward declare so onClose can reference it
+local FooterGui    -- forward declare so onClose can reference it
+local glowTween    -- forward declare so onClose can reference it
+local gui          -- forward declare so onClose can reference it
+
 local function onClose()
     if closed then return end
     closed = true
@@ -38,6 +49,7 @@ local function onClose()
     ghostEnabled = false
     spinning = false
     triggerbotEnabled = false
+    aimbotEnabled = false
     espEnabled = false
     orbiting = false
     orbitTarget = nil
@@ -45,10 +57,10 @@ local function onClose()
     skeletonEnabled = false
     healthBarEnabled = false
     nightModeEnabled = false
-    local existingNight = game:GetService("Lighting"):FindFirstChild("FinestNight")
+    local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
-    game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
-    game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+    Lighting.Ambient = origAmbient
+    Lighting.OutdoorAmbient = origOutdoor
     if player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
@@ -60,6 +72,20 @@ local function onClose()
             if fv then fv:Destroy() end
         end
     end
+    -- clean up all player visuals
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            if p.Character:FindFirstChild("FinestESP") then p.Character.FinestESP:Destroy() end
+            if p.Character:FindFirstChild("FinestName") then p.Character.FinestName:Destroy() end
+            if p.Character:FindFirstChild("FinestHealthBar") then p.Character.FinestHealthBar:Destroy() end
+            if p.Character:FindFirstChild("FinestSkeleton") then p.Character.FinestSkeleton:Destroy() end
+        end
+    end
+    -- destroy all GUIs
+    if glowTween then glowTween:Cancel() end
+    if WatermarkGui then WatermarkGui:Destroy() end
+    if FooterGui then FooterGui:Destroy() end
+    if gui then gui:Destroy() end
 end
 
 --// [ANTI-AFK BACKGROUND LOGIC]
@@ -69,7 +95,7 @@ player.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
-local gui = Instance.new("ScreenGui", game.CoreGui)
+gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "FinestHub" 
 
 --// [AUDIO SYSTEM]
@@ -115,7 +141,7 @@ local function notify(text, isOn)
 end
 
 --// [WATERMARK + ANTI-AFK STATUS]
-local WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
+WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
 WatermarkGui.Name = "FinestWatermark"
 local WFrame = Instance.new("Frame", WatermarkGui)
 WFrame.Size = UDim2.new(0, 380, 0, 30); WFrame.Position = UDim2.new(1, -390, 0, 10); WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
@@ -139,7 +165,7 @@ end)
 
 --// [PULSING GLOW ANIMATION - smooth infinite sine]
 local pulsing = true
-local glowTween = TweenService:Create(
+glowTween = TweenService:Create(
     Glow,
     TweenInfo.new(2.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
     { Thickness = 3.8, Color = Color3.fromRGB(195, 65, 255) }
@@ -202,7 +228,7 @@ local Sidebar = Instance.new("Frame", Main); Sidebar.Size = UDim2.new(0,140,1,-5
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,14)
 
 -- [SEPARATE FOOTER BAR GUI] declared first so updateFooter and Close can reference it safely
-local FooterGui = Instance.new("ScreenGui", game.CoreGui)
+FooterGui = Instance.new("ScreenGui", game.CoreGui)
 FooterGui.Name = "FinestFooter"
 
 local Footer = Instance.new("Frame", FooterGui)
@@ -294,7 +320,7 @@ local tabIcons = {
     ["Misc"]    = "⚙️",
     ["Fly"]     = "🕊",
     ["Ghost"]   = "👻",
-    ["Trigger"] = "🎯",
+    ["FPS"]     = "🎮",
     ["TP"]      = "📍",
     ["Players"] = "👥",
     ["Troll"]   = "🌀",
@@ -351,7 +377,7 @@ end
 local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",    5)
 local FlyPage,     FlyTabBtn,   FlyStroke     = createTab("Fly",     35)
 local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",   65)
-local TriggerPage, TrigTabBtn,  TrigStroke    = createTab("Trigger", 95)
+local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",     95)
 local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",      125)
 local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players", 155)
 local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",   185)
@@ -558,12 +584,14 @@ TrollScroll.Size = UDim2.new(1, 0, 1, 0)
 TrollScroll.BackgroundTransparency = 1
 TrollScroll.ScrollBarThickness = 3
 TrollScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
-TrollScroll.CanvasSize = UDim2.new(0, 0, 0, 320)
+TrollScroll.CanvasSize = UDim2.new(0, 0, 0, 215)
 
 local function trollBtn(text, y) return addBtn(TrollScroll, text, y) end
 local function trollBox(ph, y, def) return addBox(TrollScroll, ph, y, def) end
 
-local FBtn = trollBtn("Fling: OFF", 0); local FPower = trollBox("Power", 55, "10000")
+local FBtn = trollBtn("Fling: OFF", 0)
+local FPower = trollBox("Power", 0, "10000")
+FPower.Position = UDim2.new(0, 190, 0, 0); FPower.Size = UDim2.new(0, 80, 0, 45)
 FBtn.MouseButton1Click:Connect(function() 
     click(); spinning = not spinning
     FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"
@@ -580,8 +608,9 @@ end)
 local orbiting = false
 local orbitTarget = nil
 local orbitAngle = 0
-local OrbitTargetBox = trollBox("Target name", 110, "")
-local OrbitBtn = trollBtn("Orbit: OFF", 160)
+local OrbitBtn = trollBtn("Orbit: OFF", 55)
+local OrbitTargetBox = trollBox("Target name", 55, "")
+OrbitTargetBox.Position = UDim2.new(0, 190, 0, 55); OrbitTargetBox.Size = UDim2.new(0, 80, 0, 45); OrbitTargetBox.TextSize = 11; OrbitTargetBox.PlaceholderText = "Target"
 OrbitBtn.MouseButton1Click:Connect(function()
     click()
     local targetName = OrbitTargetBox.Text
@@ -605,10 +634,10 @@ end)
 
 --// [CHAT SPAM MODULE]
 local chatSpamming = false
-local ChatMsgBox = trollBox("Spam message", 215, "")
-local ChatSpamBtn = trollBtn("Chat Spam: OFF", 265)
-local ChatDelayBox = trollBox("Delay(s)", 265, "0.5")
-ChatDelayBox.Position = UDim2.new(0, 190, 0, 215); ChatDelayBox.Size = UDim2.new(0, 75, 0, 38)
+local ChatMsgBox = trollBox("Spam message", 110, "")
+local ChatSpamBtn = trollBtn("Chat Spam: OFF", 160)
+local ChatDelayBox = trollBox("Delay(s)", 160, "0.5")
+ChatDelayBox.Position = UDim2.new(0, 190, 0, 110); ChatDelayBox.Size = UDim2.new(0, 75, 0, 38)
 ChatSpamBtn.MouseButton1Click:Connect(function()
     click()
     if not chatSpamming and (ChatMsgBox.Text == "" or ChatMsgBox.Text == nil) then
@@ -657,13 +686,33 @@ local function createESP(p)
             local char = p.Character or p.CharacterAdded:Wait()
             local hrp = char:WaitForChild("HumanoidRootPart", 5)
             if not hrp then return end
-            if char:FindFirstChild("FinestESP") then return end -- avoid duplicates
+            if char:FindFirstChild("FinestESP") then return end
             local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = Color3.fromRGB(170, 0, 255); h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
             local b = Instance.new("BillboardGui", char); b.Name = "FinestName"; b.Size = UDim2.new(0, 200, 0, 50); b.Adornee = hrp; b.AlwaysOnTop = true; b.ExtentsOffset = Vector3.new(0, 3, 0)
             local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.fromRGB(190, 100, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 14
         end
-        p.CharacterAdded:Connect(function() task.spawn(apply) end)
         apply()
+    end)
+end
+
+-- Central respawn handler - reapplies all active visuals when any player respawns
+local function onCharacterSpawned(p, char)
+    if p == player then return end
+    task.spawn(function()
+        local hrp = char:WaitForChild("HumanoidRootPart", 10)
+        local hum = char:WaitForChild("Humanoid", 10)
+        if not hrp or not hum then return end
+        task.wait(0.5) -- small grace period for character to fully load
+        if espEnabled then createESP(p) end
+        if healthBarEnabled then applyHealthBar(char) end
+        if skeletonEnabled then applySkeletonESP(p) end
+    end)
+end
+
+-- Hook every player's CharacterAdded for respawn detection
+local function hookPlayer(p)
+    p.CharacterAdded:Connect(function(char)
+        onCharacterSpawned(p, char)
     end)
 end
 local function removeESP()
@@ -682,6 +731,14 @@ local healthBarEnabled = false
 local skeletonEnabled = false
 local nightModeEnabled = false
 local nightModeLight = nil
+
+-- hook players NOW after all state vars are declared so onCharacterSpawned reads correct values
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= player then hookPlayer(p) end
+end
+connections.playerAdded = Players.PlayerAdded:Connect(function(p)
+    if p ~= player then hookPlayer(p) end
+end)
 
 -- small helper to make the 3 sub-buttons
 local espSubData = {
@@ -737,10 +794,14 @@ local function applyHealthBar(char)
     bar.BackgroundColor3 = Color3.fromRGB(0, 220, 80)
     bar.BorderSizePixel = 0
     Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
-    hum:GetPropertyChangedSignal("Health"):Connect(function()
-        local pct = math.clamp(hum.Health/hum.MaxHealth, 0, 1)
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not hbGui or not hbGui.Parent or not hum or not hum.Parent then
+            conn:Disconnect(); return
+        end
+        local pct = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
         bar.Size = UDim2.new(pct, 0, 1, 0)
-        bar.BackgroundColor3 = pct > 0.5 and Color3.fromRGB(0,220,80) or pct > 0.25 and Color3.fromRGB(255,180,0) or Color3.fromRGB(220,0,0)
+        bar.BackgroundColor3 = pct > 0.5 and Color3.fromRGB(0, 220, 80) or pct > 0.25 and Color3.fromRGB(255, 180, 0) or Color3.fromRGB(220, 0, 0)
     end)
 end
 
@@ -790,18 +851,22 @@ end
 -- Night mode logic
 local function applyNightMode(on)
     if on then
-        nightModeLight = Instance.new("ColorCorrectionEffect", game:GetService("Lighting"))
-        nightModeLight.Name = "FinestNight"
-        nightModeLight.Brightness = -0.6
-        nightModeLight.Contrast = 0.3
-        nightModeLight.Saturation = -0.4
-        game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
-        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(10, 0, 20)
+        if not Lighting:FindFirstChild("FinestNight") then
+            local cc = Instance.new("ColorCorrectionEffect", Lighting)
+            cc.Name = "FinestNight"
+            cc.Brightness = -0.4
+            cc.Contrast = 0.2
+            cc.Saturation = -0.3
+            nightModeLight = cc
+        end
+        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        Lighting.OutdoorAmbient = Color3.fromRGB(10, 0, 20)
     else
-        local existing = game:GetService("Lighting"):FindFirstChild("FinestNight")
+        local existing = Lighting:FindFirstChild("FinestNight")
         if existing then existing:Destroy() end
-        game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
-        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+        nightModeLight = nil
+        Lighting.Ambient = origAmbient
+        Lighting.OutdoorAmbient = origOutdoor
     end
 end
 
@@ -901,8 +966,9 @@ task.spawn(function()
     end
 end)
 
---// [TRIGGERBOT ADDON - COMPLETELY ISOLATED]
-local TriggerBtn = addBtn(TriggerPage, "Triggerbot: OFF", 0, "[T]")
+--// [FPS TAB - TRIGGERBOT + AIMBOT]
+
+local TriggerBtn = addBtn(FPSPage, "Triggerbot: OFF", 0, "[T]")
 TriggerBtn.MouseButton1Click:Connect(function()
     click(); triggerbotEnabled = not triggerbotEnabled
     TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
@@ -917,6 +983,67 @@ task.spawn(function()
             local c = (t.Parent:FindFirstChildOfClass("Humanoid") and t.Parent) or (t.Parent.Parent:FindFirstChildOfClass("Humanoid") and t.Parent.Parent)
             if c and c ~= player.Character and c:FindFirstChildOfClass("Humanoid").Health > 0 then
                 mouse1click()
+            end
+        end
+    end
+end)
+
+-- Aimbot
+local AimbotBtn = addBtn(FPSPage, "Aimbot: OFF", 55)
+AimbotBtn.TextSize = 14 -- smaller so ON (Hold Shift) fits
+local AimbotSensBox = addBox(FPSPage, "Sens", 55, "0.3")
+AimbotSensBox.Position = UDim2.new(0, 190, 0, 55); AimbotSensBox.Size = UDim2.new(0, 80, 0, 45)
+local altHeld = false
+
+connections.shiftBegan = UIS.InputBegan:Connect(function(input, processed)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        altHeld = true
+    end
+end)
+connections.shiftEnded = UIS.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        altHeld = false
+    end
+end)
+
+AimbotBtn.MouseButton1Click:Connect(function()
+    click(); aimbotEnabled = not aimbotEnabled
+    AimbotBtn.Text = aimbotEnabled and "Aimbot: ON (Hold Shift)" or "Aimbot: OFF"
+    AimbotBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🎯 Aimbot"] = aimbotEnabled; updateFooter()
+    notify("Aimbot: " .. (aimbotEnabled and "ON — Hold LeftShift" or "OFF"), aimbotEnabled)
+end)
+
+-- Aimbot loop - only runs while LeftAlt is held AND aimbot is toggled on
+task.spawn(function()
+    while task.wait() do
+        if not aimbotEnabled or not altHeld or not player.Character then continue end
+        local cam = workspace.CurrentCamera
+        local closestPlayer = nil
+        local closestDist = math.huge
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local head = p.Character:FindFirstChild("Head")
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                if head and hum and hum.Health > 0 then
+                    local screenPos, onScreen = cam:WorldToScreenPoint(head.Position)
+                    if onScreen then
+                        local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if dist < closestDist then
+                            closestDist = dist
+                            closestPlayer = p
+                        end
+                    end
+                end
+            end
+        end
+        if closestPlayer and closestPlayer.Character then
+            local head = closestPlayer.Character:FindFirstChild("Head")
+            if head then
+                local sens = tonumber(AimbotSensBox.Text) or 0.3
+                local targetCF = CFrame.new(cam.CFrame.Position, head.Position)
+                cam.CFrame = cam.CFrame:Lerp(targetCF, math.clamp(sens, 0.01, 1))
             end
         end
     end
@@ -985,26 +1112,8 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
     end
 end)
 
---// [CLOSE BUTTON - wired last so glowTween, WatermarkGui, FooterGui, gui are all guaranteed in scope]
+--// [CLOSE BUTTON - wired last so all vars are in scope]
 Close.MouseButton1Click:Connect(function()
-    onClose()
-    -- clean up ESP, health bars, skeleton
-    for _, p in pairs(Players:GetPlayers()) do
-        if p.Character then
-            if p.Character:FindFirstChild("FinestESP") then p.Character.FinestESP:Destroy() end
-            if p.Character:FindFirstChild("FinestName") then p.Character.FinestName:Destroy() end
-            if p.Character:FindFirstChild("FinestHealthBar") then p.Character.FinestHealthBar:Destroy() end
-            if p.Character:FindFirstChild("FinestSkeleton") then p.Character.FinestSkeleton:Destroy() end
-        end
-    end
-    -- restore lighting if night mode was on
-    local existingNight = game:GetService("Lighting"):FindFirstChild("FinestNight")
-    if existingNight then existingNight:Destroy() end
-    game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
-    game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
-    glowTween:Cancel()
     menuSound()
-    WatermarkGui:Destroy()
-    FooterGui:Destroy()
-    gui:Destroy()
+    onClose()
 end)
