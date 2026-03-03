@@ -910,11 +910,10 @@ applyHealthBar = function(char)
     local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
     local hbGui = Instance.new("BillboardGui", char); hbGui.Name = "FinestHealthBar"
     hbGui.Adornee = hrp; hbGui.AlwaysOnTop = true
-    hbGui.Size = UDim2.new(0, 4, 0, 4)          -- small anchor size in studs
+    hbGui.Size = UDim2.new(0, 4, 0, 4)
     hbGui.SizeOffset = Vector2.new(0, 0)
-    hbGui.StudsOffset = Vector3.new(0, 3.2, 0)   -- fixed position above head in studs
+    hbGui.StudsOffset = Vector3.new(0, 3.2, 0)
     hbGui.ExtentsOffsetWorldSpace = Vector3.new(0, 0, 0)
-    -- actual pixel size of the bar lives here, always fixed on screen
     local container = Instance.new("Frame", hbGui)
     container.Size = UDim2.new(0, 60, 0, 7)
     container.Position = UDim2.new(0.5, -30, 0.5, -3)
@@ -945,7 +944,6 @@ local skeletonBones = {
     {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
     {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
 }
--- Skeleton logic - draws lines between joints using DrawLine via Frame in ScreenGui
 applySkeletonESP = function(p)
     if not p.Character then return end
     local char = p.Character
@@ -962,7 +960,7 @@ applySkeletonESP = function(p)
                     if not existing then
                         local boneGui = Instance.new("BillboardGui", container)
                         boneGui.Name = boneName
-                        boneGui.Adornee = a  -- anchored to the first joint
+                        boneGui.Adornee = a
                         boneGui.AlwaysOnTop = true
                         boneGui.Size = UDim2.new(0, 4, 0, 4)
                         boneGui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
@@ -1044,10 +1042,8 @@ EspBtn.MouseButton1Click:Connect(function()
     EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     activeFeatures["👁 ESP"] = espEnabled; updateFooter()
     if espEnabled then
-        -- only apply ESP highlights and names
         task.spawn(function() for _, p in pairs(Players:GetPlayers()) do createESP(p) end end)
     else
-        -- only remove ESP highlights and name tags, nothing else
         for _, p in pairs(Players:GetPlayers()) do
             if p.Character then
                 if p.Character:FindFirstChild("FinestESP") then p.Character.FinestESP:Destroy() end
@@ -1122,31 +1118,33 @@ end)
 
 -- Aimbot
 local AimbotBtn = addBtn(FPSPage, "Aimbot: OFF", 55)
-AimbotBtn.TextSize = 14 -- smaller so ON (Hold Shift) fits
+AimbotBtn.TextSize = 14 -- smaller so ON (Hold M1) fits
 local AimbotSensBox = addBox(FPSPage, "Sens", 55, "0.3")
 AimbotSensBox.Position = UDim2.new(0, 190, 0, 55); AimbotSensBox.Size = UDim2.new(0, 80, 0, 45)
+
+-- Track Mouse2 (right mouse button) hold state
 local altHeld = false
 
-connections.shiftBegan = UIS.InputBegan:Connect(function(input, processed)
-    if input.KeyCode == Enum.KeyCode.LeftShift then
+connections.m2Began = UIS.InputBegan:Connect(function(input, processed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
         altHeld = true
     end
 end)
-connections.shiftEnded = UIS.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.LeftShift then
+connections.m2Ended = UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
         altHeld = false
     end
 end)
 
 AimbotBtn.MouseButton1Click:Connect(function()
     click(); aimbotEnabled = not aimbotEnabled
-    AimbotBtn.Text = aimbotEnabled and "Aimbot: ON (Hold Shift)" or "Aimbot: OFF"
+    AimbotBtn.Text = aimbotEnabled and "Aimbot: ON (Hold M2)" or "Aimbot: OFF"
     AimbotBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     activeFeatures["🎯 Aimbot"] = aimbotEnabled; updateFooter()
-    notify("Aimbot: " .. (aimbotEnabled and "ON — Hold LeftShift" or "OFF"), aimbotEnabled)
+    notify("Aimbot: " .. (aimbotEnabled and "ON — Hold Mouse2" or "OFF"), aimbotEnabled)
 end)
 
--- Aimbot loop - only runs while LeftAlt is held AND aimbot is toggled on
+-- Aimbot loop - only runs while Mouse1 is held AND aimbot is toggled on
 task.spawn(function()
     while task.wait() do
         if not aimbotEnabled or not altHeld or not player.Character then continue end
