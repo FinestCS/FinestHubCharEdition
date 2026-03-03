@@ -24,6 +24,10 @@ local espEnabled = false
 local orbiting = false
 local orbitTarget = nil
 local orbitAngle = 0
+local healthBarEnabled = false
+local skeletonEnabled = false
+local nightModeEnabled = false
+local chatSpamming = false
 local function onClose()
     if closed then return end
     closed = true
@@ -37,6 +41,14 @@ local function onClose()
     espEnabled = false
     orbiting = false
     orbitTarget = nil
+    chatSpamming = false
+    skeletonEnabled = false
+    healthBarEnabled = false
+    nightModeEnabled = false
+    local existingNight = game:GetService("Lighting"):FindFirstChild("FinestNight")
+    if existingNight then existingNight:Destroy() end
+    game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
+    game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
     if player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
@@ -522,7 +534,18 @@ end
 task.spawn(function() while task.wait(5) do if PlayersPage.Visible then refreshPlayers() end end end)
 
 --// [FLING MODULE]
-local FBtn = addBtn(TrollPage, "Fling: OFF", 0); local FPower = addBox(TrollPage, "Power", 55, "10000")
+-- Wrap troll content in a ScrollingFrame so everything fits
+local TrollScroll = Instance.new("ScrollingFrame", TrollPage)
+TrollScroll.Size = UDim2.new(1, 0, 1, 0)
+TrollScroll.BackgroundTransparency = 1
+TrollScroll.ScrollBarThickness = 3
+TrollScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
+TrollScroll.CanvasSize = UDim2.new(0, 0, 0, 320)
+
+local function trollBtn(text, y) return addBtn(TrollScroll, text, y) end
+local function trollBox(ph, y, def) return addBox(TrollScroll, ph, y, def) end
+
+local FBtn = trollBtn("Fling: OFF", 0); local FPower = trollBox("Power", 55, "10000")
 FBtn.MouseButton1Click:Connect(function() 
     click(); spinning = not spinning
     FBtn.Text = spinning and "Fling: ON" or "Fling: OFF"
@@ -539,8 +562,8 @@ end)
 local orbiting = false
 local orbitTarget = nil
 local orbitAngle = 0
-local OrbitTargetBox = addBox(TrollPage, "Target name", 110, "")
-local OrbitBtn = addBtn(TrollPage, "Orbit: OFF", 160)
+local OrbitTargetBox = trollBox("Target name", 110, "")
+local OrbitBtn = trollBtn("Orbit: OFF", 160)
 OrbitBtn.MouseButton1Click:Connect(function()
     click()
     local targetName = OrbitTargetBox.Text
@@ -562,6 +585,52 @@ OrbitBtn.MouseButton1Click:Connect(function()
     notify("Orbit: " .. (orbiting and ("ON → " .. (found and found.DisplayName or "?")) or "OFF"), orbiting)
 end)
 
+--// [CHAT SPAM MODULE]
+local chatSpamming = false
+local ChatMsgBox = trollBox("Spam message", 215, "")
+local ChatSpamBtn = trollBtn("Chat Spam: OFF", 265)
+local ChatDelayBox = trollBox("Delay(s)", 265, "0.5")
+ChatDelayBox.Position = UDim2.new(0, 190, 0, 215); ChatDelayBox.Size = UDim2.new(0, 75, 0, 38)
+ChatSpamBtn.MouseButton1Click:Connect(function()
+    click()
+    if not chatSpamming and (ChatMsgBox.Text == "" or ChatMsgBox.Text == nil) then
+        notify("Chat Spam: Enter a message first!", false); return
+    end
+    chatSpamming = not chatSpamming
+    ChatSpamBtn.Text = chatSpamming and "Chat Spam: ON" or "Chat Spam: OFF"
+    ChatSpamBtn.BackgroundColor3 = chatSpamming and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["💬 Spam"] = chatSpamming; updateFooter()
+    notify("Chat Spam: " .. (chatSpamming and "ON" or "OFF"), chatSpamming)
+    if chatSpamming then
+        task.spawn(function()
+            while chatSpamming and not closed do
+                local msg = ChatMsgBox.Text
+                if msg and msg ~= "" then
+                    -- try modern TextChatService first, fall back to legacy
+                    local tcs = game:GetService("TextChatService")
+                    local sent = false
+                    if tcs and tcs.TextChannels then
+                        local general = tcs.TextChannels:FindFirstChild("RBXGeneral")
+                        if general then
+                            pcall(function() general:SendAsync(msg) end)
+                            sent = true
+                        end
+                    end
+                    if not sent then
+                        local chatEvents = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                        if chatEvents then
+                            local sayMsg = chatEvents:FindFirstChild("SayMessageRequest")
+                            if sayMsg then pcall(function() sayMsg:FireServer(msg, "All") end) end
+                        end
+                    end
+                end
+                local delay = tonumber(ChatDelayBox.Text) or 0.5
+                task.wait(math.max(delay, 0.2)) -- min 0.2s to avoid instant kick
+            end
+        end)
+    end
+end)
+
 --// [VISUALS]
 local function createESP(p)
     if p == player then return end
@@ -579,14 +648,187 @@ local function createESP(p)
         apply()
     end)
 end
-local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Character then if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end end end end
+local function removeESP()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v.Character then
+            if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end
+            if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end
+        end
+    end
+end
+
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0, "[E]")
+
+-- ESP sub-feature states
+local healthBarEnabled = false
+local skeletonEnabled = false
+local nightModeEnabled = false
+local nightModeLight = nil
+
+-- small helper to make the 3 sub-buttons
+local espSubData = {
+    {label = "❤ Health", x = 0},
+    {label = "💀 Skeleton", x = 63},
+    {label = "🌑 Night", x = 126},
+}
+local espSubBtns = {}
+for _, d in ipairs(espSubData) do
+    local sb = Instance.new("TextButton", VisualPage)
+    sb.Size = UDim2.new(0, 58, 0, 22)
+    sb.Position = UDim2.new(0, d.x, 0, 50)
+    sb.Text = d.label
+    sb.BackgroundColor3 = Color3.fromRGB(55, 0, 90)
+    sb.TextColor3 = Color3.fromRGB(180, 130, 255)
+    sb.Font = Enum.Font.GothamBold
+    sb.TextSize = 10
+    sb.AutoButtonColor = false
+    Instance.new("UICorner", sb).CornerRadius = UDim.new(0, 6)
+    local ss = Instance.new("UIStroke", sb)
+    ss.Color = Color3.fromRGB(110, 0, 180)
+    ss.Thickness = 1
+    table.insert(espSubBtns, sb)
+end
+
+local function setSubBtn(btn, on)
+    TweenService:Create(btn, TweenInfo.new(0.15), {
+        BackgroundColor3 = on and Color3.fromRGB(0, 160, 80) or Color3.fromRGB(55, 0, 90),
+        TextColor3 = on and Color3.fromRGB(200, 255, 220) or Color3.fromRGB(180, 130, 255)
+    }):Play()
+end
+
+-- Health bar logic
+local function applyHealthBar(char)
+    if char:FindFirstChild("FinestHealthBar") then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+    local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
+    local hbGui = Instance.new("BillboardGui", char); hbGui.Name = "FinestHealthBar"
+    hbGui.Size = UDim2.new(0, 80, 0, 10); hbGui.Adornee = hrp; hbGui.AlwaysOnTop = true
+    hbGui.ExtentsOffset = Vector3.new(0, 2.2, 0)
+    local back = Instance.new("Frame", hbGui); back.Size = UDim2.new(1,0,1,0); back.BackgroundColor3 = Color3.fromRGB(40,0,0)
+    Instance.new("UICorner", back).CornerRadius = UDim.new(1,0)
+    local bar = Instance.new("Frame", back); bar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,1,0); bar.BackgroundColor3 = Color3.fromRGB(0,220,80)
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+    hum:GetPropertyChangedSignal("Health"):Connect(function()
+        local pct = math.clamp(hum.Health/hum.MaxHealth, 0, 1)
+        bar.Size = UDim2.new(pct, 0, 1, 0)
+        bar.BackgroundColor3 = pct > 0.5 and Color3.fromRGB(0,220,80) or pct > 0.25 and Color3.fromRGB(255,180,0) or Color3.fromRGB(220,0,0)
+    end)
+end
+
+-- Skeleton logic (lines between major joints using BillboardGui per bone)
+local skeletonBones = {
+    {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+    {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+    {"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+    {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+    {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+}
+-- Skeleton logic - draws lines between joints using DrawLine via Frame in ScreenGui
+local function applySkeletonESP(p)
+    if not p.Character then return end
+    local char = p.Character
+    if char:FindFirstChild("FinestSkeleton") then return end
+    local container = Instance.new("Folder", char); container.Name = "FinestSkeleton"
+    task.spawn(function()
+        while skeletonEnabled and container and container.Parent do
+            for _, bone in ipairs(skeletonBones) do
+                local a = char:FindFirstChild(bone[1])
+                local b = char:FindFirstChild(bone[2])
+                if a and b then
+                    local boneName = bone[1]..bone[2]
+                    local existing = container:FindFirstChild(boneName)
+                    if not existing then
+                        local boneGui = Instance.new("BillboardGui", container)
+                        boneGui.Name = boneName
+                        boneGui.Adornee = a  -- anchored to the first joint
+                        boneGui.AlwaysOnTop = true
+                        boneGui.Size = UDim2.new(0, 4, 0, 4)
+                        boneGui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
+                        local dot = Instance.new("Frame", boneGui)
+                        dot.Size = UDim2.new(1, 0, 1, 0)
+                        dot.BackgroundColor3 = Color3.fromRGB(170, 0, 255)
+                        dot.BorderSizePixel = 0
+                        Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+                    end
+                end
+            end
+            task.wait(0.05)
+        end
+        if container and container.Parent then container:Destroy() end
+    end)
+end
+
+-- Night mode logic
+local function applyNightMode(on)
+    if on then
+        nightModeLight = Instance.new("ColorCorrectionEffect", game:GetService("Lighting"))
+        nightModeLight.Name = "FinestNight"
+        nightModeLight.Brightness = -0.6
+        nightModeLight.Contrast = 0.3
+        nightModeLight.Saturation = -0.4
+        game:GetService("Lighting").Ambient = Color3.fromRGB(0, 0, 0)
+        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(10, 0, 20)
+    else
+        local existing = game:GetService("Lighting"):FindFirstChild("FinestNight")
+        if existing then existing:Destroy() end
+        game:GetService("Lighting").Ambient = Color3.fromRGB(70, 70, 70)
+        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(100, 100, 100)
+    end
+end
+
+-- Sub button click handlers
+espSubBtns[1].MouseButton1Click:Connect(function()
+    click(); healthBarEnabled = not healthBarEnabled
+    setSubBtn(espSubBtns[1], healthBarEnabled)
+    if healthBarEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then task.spawn(function() applyHealthBar(p.Character) end) end
+        end
+    else
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("FinestHealthBar") then p.Character.FinestHealthBar:Destroy() end
+        end
+    end
+    notify("Health Bars: " .. (healthBarEnabled and "ON" or "OFF"), healthBarEnabled)
+end)
+
+espSubBtns[2].MouseButton1Click:Connect(function()
+    click(); skeletonEnabled = not skeletonEnabled
+    setSubBtn(espSubBtns[2], skeletonEnabled)
+    if skeletonEnabled then
+        for _, p in pairs(Players:GetPlayers()) do if p ~= player then task.spawn(function() applySkeletonESP(p) end) end end
+    else
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("FinestSkeleton") then p.Character.FinestSkeleton:Destroy() end
+        end
+    end
+    notify("Skeleton ESP: " .. (skeletonEnabled and "ON" or "OFF"), skeletonEnabled)
+end)
+
+espSubBtns[3].MouseButton1Click:Connect(function()
+    click(); nightModeEnabled = not nightModeEnabled
+    setSubBtn(espSubBtns[3], nightModeEnabled)
+    applyNightMode(nightModeEnabled)
+    notify("Night Mode: " .. (nightModeEnabled and "ON" or "OFF"), nightModeEnabled)
+end)
+
 EspBtn.MouseButton1Click:Connect(function()
     click(); espEnabled = not espEnabled
     EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
     EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
     activeFeatures["👁 ESP"] = espEnabled; updateFooter()
-    if espEnabled then task.spawn(function() for _, p in pairs(Players:GetPlayers()) do createESP(p) end end) else removeESP() end
+    if espEnabled then
+        -- only apply ESP highlights and names
+        task.spawn(function() for _, p in pairs(Players:GetPlayers()) do createESP(p) end end)
+    else
+        -- only remove ESP highlights and name tags, nothing else
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                if p.Character:FindFirstChild("FinestESP") then p.Character.FinestESP:Destroy() end
+                if p.Character:FindFirstChild("FinestName") then p.Character.FinestName:Destroy() end
+            end
+        end
+    end
 end)
 
 --// [ORIGINAL MASTER LOOP]
