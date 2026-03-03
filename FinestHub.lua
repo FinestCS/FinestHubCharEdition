@@ -74,6 +74,8 @@ local function onClose()
     spectateTarget = nil
     freezeEnabled = false
     freezeTarget = nil
+    -- reset infiniteJump so it doesn't persist after close
+    infiniteJump = false
     workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
     local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
@@ -571,7 +573,7 @@ moveScroll.Size = UDim2.new(1, 0, 1, 0)
 moveScroll.BackgroundTransparency = 1
 moveScroll.ScrollBarThickness = 3
 moveScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
-moveScroll.CanvasSize = UDim2.new(0, 0, 0, 270)
+moveScroll.CanvasSize = UDim2.new(0, 0, 0, 345)
 
 local function moveBtn(text, y, kb) return addBtn(moveScroll, text, y, kb) end
 local function moveBox(ph, y, def) return addBox(moveScroll, ph, y, def) end
@@ -648,6 +650,29 @@ for i, preset in ipairs(flyPresetData) do
 end
 
 -- Camera FOV removed
+
+-- Infinite Jump
+sectionLabel("── Infinite Jump", 262)
+local infiniteJump = false
+local InfJumpBtn = moveBtn("Inf Jump: OFF", 282)
+InfJumpBtn.MouseButton1Click:Connect(function()
+    click()
+    infiniteJump = not infiniteJump
+    InfJumpBtn.Text = infiniteJump and "Inf Jump: ON" or "Inf Jump: OFF"
+    InfJumpBtn.BackgroundColor3 = infiniteJump and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🦘 InfJump"] = infiniteJump; updateFooter()
+    notify("Infinite Jump: " .. (infiniteJump and "ON" or "OFF"), infiniteJump)
+end)
+
+-- Hook into jump request so every jump press triggers another jump mid-air
+UIS.JumpRequest:Connect(function()
+    if infiniteJump and player.Character then
+        local hum = player.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum:GetState() ~= Enum.HumanoidStateType.Dead then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
 
 --// [GHOST MODULE]
 local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0, "[G]")
