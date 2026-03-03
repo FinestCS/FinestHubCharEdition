@@ -36,6 +36,16 @@ local nightModeEnabled = false
 local chatSpamming = false
 local spectating = false
 local spectateTarget = nil
+local freezeEnabled = false
+-- Keybind table declared here so inputBegan can reference it before Settings tab is built
+local keybinds = {
+    ["Menu"]    = Enum.KeyCode.RightControl,
+    ["Fly"]     = Enum.KeyCode.F,
+    ["Ghost"]   = Enum.KeyCode.G,
+    ["ESP"]     = Enum.KeyCode.E,
+    ["Trigger"] = Enum.KeyCode.T,
+}
+local listeningFor = nil  -- which settings slot is waiting for a new key press
 local espColor = Color3.fromRGB(170, 0, 255) -- default purple, declared early so createESP can use it
 local WatermarkGui -- forward declare so onClose can reference it
 local FooterGui    -- forward declare so onClose can reference it
@@ -62,6 +72,8 @@ local function onClose()
     nightModeEnabled = false
     spectating = false
     spectateTarget = nil
+    freezeEnabled = false
+    freezeTarget = nil
     workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
     local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
@@ -92,6 +104,10 @@ local function onClose()
     if WatermarkGui then WatermarkGui:Destroy() end
     if FooterGui then FooterGui:Destroy() end
     if gui then gui:Destroy() end
+    pcall(function()
+        if game.CoreGui:FindFirstChild("FinestCrosshair") then game.CoreGui.FinestCrosshair:Destroy() end
+        if game.CoreGui:FindFirstChild("FinestParticles") then game.CoreGui.FinestParticles:Destroy() end
+    end)
 end
 
 --// [ANTI-AFK BACKGROUND LOGIC]
@@ -180,6 +196,76 @@ glowTween:Play()
 
 local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255); Title.RichText = true
 
+--// [BORDER PARTICLE SYSTEM - subtle floating sparkles around the frame]
+local particleGui = Instance.new("Frame", gui)
+particleGui.Name = "FinestParticles"
+particleGui.BackgroundTransparency = 1
+particleGui.Size = UDim2.new(1, 0, 1, 0)
+particleGui.ZIndex = 0
+
+local particleColors = {
+    Color3.fromRGB(200, 100, 255),
+    Color3.fromRGB(170, 0, 255),
+    Color3.fromRGB(220, 150, 255),
+    Color3.fromRGB(140, 0, 220),
+}
+
+local function spawnParticle()
+    if closed or not Main.Visible then return end
+    local p = Instance.new("Frame", particleGui)
+    p.BackgroundColor3 = particleColors[math.random(1, #particleColors)]
+    local sz = math.random(2, 5)
+    p.Size = UDim2.new(0, sz, 0, sz)
+    p.BorderSizePixel = 0
+    p.ZIndex = 10
+    Instance.new("UICorner", p).CornerRadius = UDim.new(1, 0)
+
+    -- pick a random edge of the Main frame
+    local mx = Main.AbsolutePosition.X
+    local my = Main.AbsolutePosition.Y
+    local mw = Main.AbsoluteSize.X
+    local mh = Main.AbsoluteSize.Y
+    local edge = math.random(1, 4)
+    local startX, startY
+    if edge == 1 then -- top
+        startX = mx + math.random(0, mw)
+        startY = my
+    elseif edge == 2 then -- bottom
+        startX = mx + math.random(0, mw)
+        startY = my + mh
+    elseif edge == 3 then -- left
+        startX = mx
+        startY = my + math.random(0, mh)
+    else -- right
+        startX = mx + mw
+        startY = my + math.random(0, mh)
+    end
+
+    p.Position = UDim2.new(0, startX, 0, startY)
+    p.BackgroundTransparency = 0.2
+
+    local driftX = math.random(-18, 18)
+    local driftY = math.random(-28, -8)
+    local duration = math.random(8, 16) / 10
+
+    TweenService:Create(p, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, startX + driftX, 0, startY + driftY),
+        BackgroundTransparency = 1,
+        Size = UDim2.new(0, 1, 0, 1),
+    }):Play()
+
+    game.Debris:AddItem(p, duration + 0.1)
+end
+
+task.spawn(function()
+    while not closed do
+        task.wait(0.12)
+        if Main.Visible then
+            spawnParticle()
+        end
+    end
+end)
+
 --// [TITLE ANIMATION - typewriter intro then wave]
 local titleChars = {"F","i","n","e","s","t"," ","H","u","b"}
 local titleColors = {
@@ -230,7 +316,15 @@ local Close = Instance.new("TextButton", Main); Close.Size = UDim2.new(0,40,0,40
 -- Close wired below after FooterGui is declared
 local Min = Instance.new("TextButton", Main); Min.Size = UDim2.new(0,40,0,40); Min.Position = UDim2.new(1,-85,0,0); Min.Text = "-"; Min.BackgroundTransparency = 1; Min.TextColor3 = Color3.fromRGB(200,150,255); Min.Font = Enum.Font.GothamBold; Min.TextSize = 28
 
-local Sidebar = Instance.new("Frame", Main); Sidebar.Size = UDim2.new(0,140,1,-55); Sidebar.Position = UDim2.new(0,5,0,45); Sidebar.BackgroundColor3 = Color3.fromRGB(45,0,75); Sidebar.BackgroundTransparency = 0.3
+local Sidebar = Instance.new("ScrollingFrame", Main)
+Sidebar.Size = UDim2.new(0,140,1,-55)
+Sidebar.Position = UDim2.new(0,5,0,45)
+Sidebar.BackgroundColor3 = Color3.fromRGB(45,0,75)
+Sidebar.BackgroundTransparency = 0.3
+Sidebar.ScrollBarThickness = 3
+Sidebar.ScrollBarImageColor3 = Color3.fromRGB(130, 0, 200)
+Sidebar.CanvasSize = UDim2.new(0, 0, 0, 285) -- 9 tabs * 30px + padding
+Sidebar.BorderSizePixel = 0
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,14)
 
 -- [SEPARATE FOOTER BAR GUI] declared first so updateFooter and Close can reference it safely
@@ -323,14 +417,15 @@ end)
 
 --// [NEW] TAB ICONS MAP
 local tabIcons = {
-    ["Misc"]    = "⚙️",
-    ["Fly"]     = "🕊",
-    ["Ghost"]   = "👻",
-    ["FPS"]     = "🎮",
-    ["TP"]      = "📍",
-    ["Players"] = "👥",
-    ["Troll"]   = "🌀",
-    ["Visuals"] = "👁",
+    ["Misc"]     = "⚙️",
+    ["Fly"]      = "🕊",
+    ["Ghost"]    = "👻",
+    ["FPS"]      = "🎮",
+    ["TP"]       = "📍",
+    ["Players"]  = "👥",
+    ["Troll"]    = "🌀",
+    ["Visuals"]  = "👁",
+    ["Settings"] = "🔧",
 }
 
 local function createTab(name, y)
@@ -380,14 +475,15 @@ local function createTab(name, y)
 end
 
 --// ALL TABS
-local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",    5)
-local FlyPage,     FlyTabBtn,   FlyStroke     = createTab("Fly",     35)
-local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",   65)
-local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",     95)
-local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",      125)
-local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players", 155)
-local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",   185)
-local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals", 215)
+local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",     5)
+local FlyPage,     FlyTabBtn,   FlyStroke     = createTab("Fly",      35)
+local GhostPage,   GhostTabBtn, GhostStroke   = createTab("Ghost",    65)
+local FPSPage,     FPSTabBtn,   FPSStroke     = createTab("FPS",      95)
+local TPPage,      TPTabBtn,    TPStroke      = createTab("TP",       125)
+local PlayersPage, PlTabBtn,    PlStroke      = createTab("Players",  155)
+local TrollPage,   TrTabBtn,    TrStroke      = createTab("Troll",    185)
+local VisualPage,  VisTabBtn,   VisStroke     = createTab("Visuals",  215)
+local SettingsPage, SetTabBtn,  SetStroke     = createTab("Settings", 245)
 
 -- highlight Misc as default active tab + show its glow
 MiscPage.Visible = true
@@ -590,13 +686,39 @@ local function refreshPlayers()
     for _, v in pairs(PlayerScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
     for _, p in pairs(Players:GetPlayers()) do if p ~= player then
         local row = Instance.new("Frame", PlayerScroll)
-        row.Size = UDim2.new(1, -5, 0, 35)
+        row.Size = UDim2.new(1, -5, 0, 42)
         row.BackgroundTransparency = 1
 
-        -- name label
+        -- avatar thumbnail
+        local avatarFrame = Instance.new("Frame", row)
+        avatarFrame.Size = UDim2.new(0, 36, 0, 36)
+        avatarFrame.Position = UDim2.new(0, 0, 0.5, -18)
+        avatarFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 80)
+        avatarFrame.BorderSizePixel = 0
+        Instance.new("UICorner", avatarFrame).CornerRadius = UDim.new(0, 6)
+        local avatarStroke = Instance.new("UIStroke", avatarFrame)
+        avatarStroke.Color = Color3.fromRGB(140, 0, 220)
+        avatarStroke.Thickness = 1
+
+        local avatarImg = Instance.new("ImageLabel", avatarFrame)
+        avatarImg.Size = UDim2.new(1, 0, 1, 0)
+        avatarImg.BackgroundTransparency = 1
+        avatarImg.ScaleType = Enum.ScaleType.Crop
+        Instance.new("UICorner", avatarImg).CornerRadius = UDim.new(0, 5)
+        -- load headshot thumbnail asynchronously
+        task.spawn(function()
+            local ok, img = pcall(function()
+                return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+            end)
+            if ok and avatarImg and avatarImg.Parent then
+                avatarImg.Image = img
+            end
+        end)
+
+        -- name label (offset right to make room for avatar)
         local nameBtn = Instance.new("TextButton", row)
-        nameBtn.Size = UDim2.new(1, -80, 1, 0)
-        nameBtn.Position = UDim2.new(0, 0, 0, 0)
+        nameBtn.Size = UDim2.new(1, -120, 1, 0)
+        nameBtn.Position = UDim2.new(0, 42, 0, 0)
         nameBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
         nameBtn.Text = p.DisplayName
         nameBtn.TextColor3 = Color3.new(1,1,1)
@@ -661,7 +783,7 @@ TrollScroll.Size = UDim2.new(1, 0, 1, 0)
 TrollScroll.BackgroundTransparency = 1
 TrollScroll.ScrollBarThickness = 3
 TrollScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
-TrollScroll.CanvasSize = UDim2.new(0, 0, 0, 215)
+TrollScroll.CanvasSize = UDim2.new(0, 0, 0, 330)
 
 local function trollBtn(text, y) return addBtn(TrollScroll, text, y) end
 local function trollBox(ph, y, def) return addBox(TrollScroll, ph, y, def) end
@@ -710,7 +832,6 @@ OrbitBtn.MouseButton1Click:Connect(function()
 end)
 
 --// [CHAT SPAM MODULE]
-local chatSpamming = false
 local ChatMsgBox = trollBox("Spam message", 110, "")
 local ChatSpamBtn = trollBtn("Chat Spam: OFF", 160)
 local ChatDelayBox = trollBox("Delay(s)", 160, "0.5")
@@ -752,6 +873,52 @@ ChatSpamBtn.MouseButton1Click:Connect(function()
                 task.wait(math.max(delay, 0.2)) -- min 0.2s to avoid instant kick
             end
         end)
+    end
+end)
+
+--// [FOLLOW MODULE]
+-- Teleports you 2 studs behind the target every frame, relentlessly shadowing them
+local followTarget = nil
+local FollowTargetBox = trollBox("Target name", 215, "")
+FollowTargetBox.Size = UDim2.new(0, 80, 0, 40)
+FollowTargetBox.Position = UDim2.new(0, 190, 0, 215)
+FollowTargetBox.TextSize = 11
+FollowTargetBox.PlaceholderText = "Target"
+local FollowBtn = trollBtn("Follow: OFF", 215)
+
+FollowBtn.MouseButton1Click:Connect(function()
+    click()
+    local targetName = FollowTargetBox.Text
+    local found = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Name:lower():find(targetName:lower()) then
+            found = p; break
+        end
+    end
+    if not freezeEnabled and not found then
+        notify("Follow: Player not found!", false); return
+    end
+    freezeEnabled = not freezeEnabled
+    followTarget = freezeEnabled and found or nil
+    FollowBtn.Text = freezeEnabled and "Follow: ON" or "Follow: OFF"
+    FollowBtn.BackgroundColor3 = freezeEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["👣 Follow"] = freezeEnabled; updateFooter()
+    notify("Follow: " .. (freezeEnabled and ("ON → " .. (found and found.DisplayName or "?")) or "OFF"), freezeEnabled)
+end)
+
+-- Follow loop: stay glued 2 studs behind target every 0.05s
+task.spawn(function()
+    while not closed do
+        task.wait(0.05)
+        if freezeEnabled and followTarget and followTarget.Character and player.Character then
+            local tHRP = followTarget.Character:FindFirstChild("HumanoidRootPart")
+            local myHRP = player.Character:FindFirstChild("HumanoidRootPart")
+            if tHRP and myHRP then
+                -- 2 studs directly behind them based on their look direction
+                local behind = tHRP.CFrame * CFrame.new(0, 0, 2)
+                myHRP.CFrame = behind
+            end
+        end
     end
 end)
 
@@ -1122,6 +1289,93 @@ AimbotBtn.TextSize = 14 -- smaller so ON (Hold M1) fits
 local AimbotSensBox = addBox(FPSPage, "Sens", 55, "0.3")
 AimbotSensBox.Position = UDim2.new(0, 190, 0, 55); AimbotSensBox.Size = UDim2.new(0, 80, 0, 45)
 
+--// [CROSSHAIR OVERLAY]
+local crosshairEnabled = false
+local CrosshairGui = Instance.new("ScreenGui", game.CoreGui)
+CrosshairGui.Name = "FinestCrosshair"
+CrosshairGui.ResetOnSpawn = false
+CrosshairGui.IgnoreGuiInset = true  -- ignore topbar offset so 0.5,0.5 = true screen center
+
+-- crosshair container centered on screen
+local CHContainer = Instance.new("Frame", CrosshairGui)
+CHContainer.BackgroundTransparency = 1
+CHContainer.Size = UDim2.new(0, 40, 0, 40)
+CHContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+CHContainer.Position = UDim2.new(0.5, 0, 0.5, 0)
+CHContainer.Visible = false
+
+-- center dot
+local chDot = Instance.new("Frame", CHContainer)
+chDot.Size = UDim2.new(0, 4, 0, 4)
+chDot.AnchorPoint = Vector2.new(0.5, 0.5)
+chDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+chDot.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
+chDot.BorderSizePixel = 0
+Instance.new("UICorner", chDot).CornerRadius = UDim.new(1, 0)
+
+-- four lines: top, bottom, left, right
+local chLines = {}
+local lineData = {
+    {size = UDim2.new(0, 2, 0, 8),  pos = UDim2.new(0.5, -1, 0, 2)},   -- top
+    {size = UDim2.new(0, 2, 0, 8),  pos = UDim2.new(0.5, -1, 1, -10)},  -- bottom
+    {size = UDim2.new(0, 8, 0, 2),  pos = UDim2.new(0, 2,  0.5, -1)},   -- left
+    {size = UDim2.new(0, 8, 0, 2),  pos = UDim2.new(1, -10, 0.5, -1)},  -- right
+}
+for _, ld in ipairs(lineData) do
+    local ln = Instance.new("Frame", CHContainer)
+    ln.Size = ld.size
+    ln.Position = ld.pos
+    ln.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
+    ln.BorderSizePixel = 0
+    Instance.new("UICorner", ln).CornerRadius = UDim.new(0, 1)
+    table.insert(chLines, ln)
+end
+
+local CrosshairBtn = addBtn(FPSPage, "Crosshair: OFF", 110)
+CrosshairBtn.TextSize = 15
+
+-- color options for crosshair
+local chColorData = {
+    {Color3.fromRGB(0, 255, 120),   "Green"},
+    {Color3.fromRGB(255, 255, 255), "White"},
+    {Color3.fromRGB(255, 50, 50),   "Red"},
+    {Color3.fromRGB(0, 180, 255),   "Blue"},
+    {Color3.fromRGB(255, 200, 0),   "Yellow"},
+}
+local chColorBtns = {}
+for i, cd in ipairs(chColorData) do
+    local cb = Instance.new("TextButton", FPSPage)
+    cb.Size = UDim2.new(0, 30, 0, 18)
+    cb.Position = UDim2.new(0, (i-1) * 34, 0, 162)
+    cb.Text = ""
+    cb.BackgroundColor3 = cd[1]
+    cb.AutoButtonColor = false
+    Instance.new("UICorner", cb).CornerRadius = UDim.new(0, 4)
+    local selStroke = Instance.new("UIStroke", cb)
+    selStroke.Color = Color3.new(1,1,1)
+    selStroke.Thickness = 0
+    table.insert(chColorBtns, {btn=cb, stroke=selStroke, color=cd[1]})
+    cb.MouseButton1Click:Connect(function()
+        click()
+        local col = cd[1]
+        chDot.BackgroundColor3 = col
+        for _, ln in ipairs(chLines) do ln.BackgroundColor3 = col end
+        for _, v in ipairs(chColorBtns) do v.stroke.Thickness = 0 end
+        selStroke.Thickness = 2
+    end)
+end
+chColorBtns[1].stroke.Thickness = 2 -- default green selected
+
+CrosshairBtn.MouseButton1Click:Connect(function()
+    click()
+    crosshairEnabled = not crosshairEnabled
+    CrosshairBtn.Text = crosshairEnabled and "Crosshair: ON" or "Crosshair: OFF"
+    CrosshairBtn.BackgroundColor3 = crosshairEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    CHContainer.Visible = crosshairEnabled
+    activeFeatures["➕ CH"] = crosshairEnabled; updateFooter()
+    notify("Crosshair: " .. (crosshairEnabled and "ON" or "OFF"), crosshairEnabled)
+end)
+
 -- Track Mouse2 (right mouse button) hold state
 local altHeld = false
 
@@ -1144,7 +1398,7 @@ AimbotBtn.MouseButton1Click:Connect(function()
     notify("Aimbot: " .. (aimbotEnabled and "ON — Hold Mouse2" or "OFF"), aimbotEnabled)
 end)
 
--- Aimbot loop - only runs while Mouse1 is held AND aimbot is toggled on
+-- Aimbot loop - only runs while Mouse2 is held AND aimbot is toggled on
 task.spawn(function()
     while task.wait() do
         if not aimbotEnabled or not altHeld or not player.Character then continue end
@@ -1181,15 +1435,16 @@ end)
 
 connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
+    if listeningFor then return end  -- don't fire features while remapping a key
 
-    if input.KeyCode == Enum.KeyCode.RightControl then
+    if input.KeyCode == keybinds["Menu"] then
         menuSound()
         Main.Visible = not Main.Visible
         WFrame.Visible = Main.Visible
         FooterGui.Enabled = Main.Visible
     end
 
-    if input.KeyCode == Enum.KeyCode.T then
+    if input.KeyCode == keybinds["Trigger"] then
         triggerbotEnabled = not triggerbotEnabled
         TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
         TriggerBtn.BackgroundColor3 = triggerbotEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
@@ -1198,7 +1453,7 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
         notify("Triggerbot: " .. (triggerbotEnabled and "ON" or "OFF"), triggerbotEnabled)
     end
 
-    if input.KeyCode == Enum.KeyCode.F then
+    if input.KeyCode == keybinds["Fly"] then
         flying = not flying
         FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
         FlyBtn.BackgroundColor3 = flying and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
@@ -1217,7 +1472,7 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
         notify("Fly: " .. (flying and "ON" or "OFF"), flying)
     end
 
-    if input.KeyCode == Enum.KeyCode.E then
+    if input.KeyCode == keybinds["ESP"] then
         espEnabled = not espEnabled
         EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
         EspBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
@@ -1231,8 +1486,8 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
         notify("ESP: " .. (espEnabled and "ON" or "OFF"), espEnabled)
     end
 
-    -- Ghost Toggle (G)
-    if input.KeyCode == Enum.KeyCode.G then
+    -- Ghost Toggle
+    if input.KeyCode == keybinds["Ghost"] then
         ghostEnabled = not ghostEnabled
         ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"
         ghostBtn.BackgroundColor3 = ghostEnabled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
@@ -1241,6 +1496,120 @@ connections.inputBegan = UIS.InputBegan:Connect(function(input, processed)
         notify("Ghost: " .. (ghostEnabled and "ON" or "OFF"), ghostEnabled)
     end
 end)
+
+--// [SETTINGS TAB]
+local settingsScroll = Instance.new("ScrollingFrame", SettingsPage)
+settingsScroll.Size = UDim2.new(1, 0, 1, 0)
+settingsScroll.BackgroundTransparency = 1
+settingsScroll.ScrollBarThickness = 3
+settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(140, 0, 220)
+settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 310)
+
+-- header
+local settingsHeader = Instance.new("TextLabel", settingsScroll)
+settingsHeader.Size = UDim2.new(1, 0, 0, 22)
+settingsHeader.Position = UDim2.new(0, 0, 0, 0)
+settingsHeader.BackgroundTransparency = 1
+settingsHeader.Text = "⌨  Keybind Remapper"
+settingsHeader.Font = Enum.Font.GothamBold
+settingsHeader.TextSize = 13
+settingsHeader.TextColor3 = Color3.fromRGB(200, 150, 255)
+settingsHeader.TextXAlignment = Enum.TextXAlignment.Left
+
+local bindSlots = {}
+local featureOrder = {"Menu", "Fly", "Ghost", "ESP", "Trigger"}
+for idx, feat in ipairs(featureOrder) do
+    local y = 28 + (idx - 1) * 52
+
+    -- label
+    local lbl = Instance.new("TextLabel", settingsScroll)
+    lbl.Size = UDim2.new(0, 90, 0, 20)
+    lbl.Position = UDim2.new(0, 0, 0, y)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = feat
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.fromRGB(210, 170, 255)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- current key display / click to rebind
+    local keyBtn = Instance.new("TextButton", settingsScroll)
+    keyBtn.Size = UDim2.new(0, 120, 0, 28)
+    keyBtn.Position = UDim2.new(0, 95, 0, y - 4)
+    keyBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+    keyBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
+    keyBtn.Font = Enum.Font.GothamBold
+    keyBtn.TextSize = 12
+    keyBtn.Text = tostring(keybinds[feat]):gsub("Enum.KeyCode.", "")
+    Instance.new("UICorner", keyBtn).CornerRadius = UDim.new(0, 7)
+    local ks = Instance.new("UIStroke", keyBtn); ks.Color = Color3.fromRGB(120, 0, 200); ks.Thickness = 1
+
+    -- sub hint
+    local hint = Instance.new("TextLabel", settingsScroll)
+    hint.Size = UDim2.new(1, 0, 0, 14)
+    hint.Position = UDim2.new(0, 0, 0, y + 22)
+    hint.BackgroundTransparency = 1
+    hint.Text = "click key button then press any key"
+    hint.Font = Enum.Font.Gotham
+    hint.TextSize = 10
+    hint.TextColor3 = Color3.fromRGB(120, 80, 160)
+    hint.TextXAlignment = Enum.TextXAlignment.Left
+    hint.Visible = false
+
+    local thisFeature = feat
+    keyBtn.MouseButton1Click:Connect(function()
+        click()
+        if listeningFor == thisFeature then
+            -- cancel
+            listeningFor = nil
+            keyBtn.Text = tostring(keybinds[thisFeature]):gsub("Enum.KeyCode.", "")
+            keyBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+            hint.Visible = false
+        else
+            listeningFor = thisFeature
+            keyBtn.Text = "[ press key ]"
+            keyBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 170)
+            hint.Visible = true
+            -- cancel any other listening slot
+            for _, slot in pairs(bindSlots) do
+                if slot.feat ~= thisFeature then
+                    slot.btn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+                    slot.btn.Text = tostring(keybinds[slot.feat]):gsub("Enum.KeyCode.", "")
+                    slot.hint.Visible = false
+                end
+            end
+        end
+    end)
+
+    table.insert(bindSlots, {feat = thisFeature, btn = keyBtn, hint = hint})
+end
+
+-- listen for key presses to assign new binds - ONLY active when a slot is listening
+local settingsInputConn = UIS.InputBegan:Connect(function(input, processed)
+    if not listeningFor then return end  -- exit immediately when not remapping
+    if processed then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+    local kc = input.KeyCode
+    if kc == Enum.KeyCode.Escape then
+        for _, slot in pairs(bindSlots) do
+            slot.btn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+            slot.btn.Text = tostring(keybinds[slot.feat]):gsub("Enum.KeyCode.", "")
+            slot.hint.Visible = false
+        end
+        listeningFor = nil
+        return
+    end
+    -- assign new bind
+    keybinds[listeningFor] = kc
+    notify(listeningFor .. " → " .. tostring(kc):gsub("Enum.KeyCode.", ""), true)
+    for _, slot in pairs(bindSlots) do
+        slot.btn.Text = tostring(keybinds[slot.feat]):gsub("Enum.KeyCode.", "")
+        slot.btn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+        slot.hint.Visible = false
+    end
+    listeningFor = nil
+end)
+table.insert(connections, settingsInputConn)
 
 --// [CLOSE BUTTON - wired last so all vars are in scope]
 Close.MouseButton1Click:Connect(function()
