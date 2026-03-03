@@ -772,45 +772,51 @@ local function createESP(p)
     end)
 end
 
--- Central respawn handler - reapplies all active visuals when any player respawns
-local function onCharacterSpawned(p, char)
-    if p == player then return end
-    task.spawn(function()
-        local hrp = char:WaitForChild("HumanoidRootPart", 10)
-        local hum = char:WaitForChild("Humanoid", 10)
-        if not hrp or not hum then return end
-        task.wait(0.5)
-        if espEnabled then createESP(p) end
-        if healthBarEnabled then applyHealthBar(char) end
-        if skeletonEnabled then applySkeletonESP(p) end
-    end)
-end
+local applyHealthBar   -- forward declare so scan loop can call before definition
+local applySkeletonESP -- forward declare so scan loop can call before definition
 
--- Continuous scan - catches players who were far away, loaded late, or missed on first apply
+-- Simple always-running visual sync loop - handles initial apply, far away players, and respawns
 task.spawn(function()
     while not closed do
-        task.wait(3)
+        task.wait(0.5)
         for _, p in pairs(Players:GetPlayers()) do
-            if p ~= player and p.Character then
-                local char = p.Character
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hrp and hum and hum.Health > 0 then
-                    if espEnabled and not char:FindFirstChild("FinestESP") then createESP(p) end
-                    if healthBarEnabled and not char:FindFirstChild("FinestHealthBar") then task.spawn(function() applyHealthBar(char) end) end
-                    if skeletonEnabled and not char:FindFirstChild("FinestSkeleton") then task.spawn(function() applySkeletonESP(p) end) end
-                end
+            if p == player then continue end
+            local char = p.Character
+            if not char then continue end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum then continue end
+            if hum.Health <= 0 then continue end
+            if espEnabled and not char:FindFirstChild("FinestESP") then
+                local h = Instance.new("Highlight", char)
+                h.Name = "FinestESP"
+                h.FillColor = espColor
+                h.OutlineColor = Color3.new(1,1,1)
+                h.FillTransparency = 0.5
+                local b = Instance.new("BillboardGui", char)
+                b.Name = "FinestName"
+                b.Size = UDim2.new(0,200,0,50)
+                b.Adornee = hrp
+                b.AlwaysOnTop = true
+                b.ExtentsOffset = Vector3.new(0,3,0)
+                local t = Instance.new("TextLabel", b)
+                t.Size = UDim2.new(1,0,1,0)
+                t.BackgroundTransparency = 1
+                t.Text = p.DisplayName
+                t.TextColor3 = Color3.fromRGB(190,100,255)
+                t.Font = Enum.Font.GothamBold
+                t.TextSize = 14
+            end
+            if healthBarEnabled and not char:FindFirstChild("FinestHealthBar") then
+                applyHealthBar(char)
+            end
+            if skeletonEnabled and not char:FindFirstChild("FinestSkeleton") then
+                applySkeletonESP(p)
             end
         end
     end
 end)
 
--- Hook every player's CharacterAdded for respawn detection
-local function hookPlayer(p)
-    p.CharacterAdded:Connect(function(char)
-        onCharacterSpawned(p, char)
-    end)
-end
 local function removeESP()
     for _, v in pairs(Players:GetPlayers()) do
         if v.Character then
@@ -821,20 +827,6 @@ local function removeESP()
 end
 
 local EspBtn = addBtn(VisualPage, "ESP: OFF", 0, "[E]")
-
--- ESP sub-feature states
-local healthBarEnabled = false
-local skeletonEnabled = false
-local nightModeEnabled = false
-local nightModeLight = nil
-
--- hook players NOW after all state vars are declared so onCharacterSpawned reads correct values
-for _, p in pairs(Players:GetPlayers()) do
-    if p ~= player then hookPlayer(p) end
-end
-connections.playerAdded = Players.PlayerAdded:Connect(function(p)
-    if p ~= player then hookPlayer(p) end
-end)
 
 -- small helper to make the 3 sub-buttons
 local espSubData = {
@@ -869,37 +861,37 @@ end
 
 -- ESP color picker
 local espColorData = {
-    {"💜", Color3.fromRGB(170, 0, 255)},
-    {"❤️", Color3.fromRGB(255, 30, 30)},
-    {"💙", Color3.fromRGB(0, 120, 255)},
-    {"💚", Color3.fromRGB(0, 220, 80)},
-    {"🧡", Color3.fromRGB(255, 140, 0)},
+    {Color3.fromRGB(170, 0, 255)},
+    {Color3.fromRGB(255, 30, 30)},
+    {Color3.fromRGB(0, 120, 255)},
+    {Color3.fromRGB(0, 220, 80)},
+    {Color3.fromRGB(255, 140, 0)},
 }
 local espColorBtns = {}
+local function updateColorBtns(activeIndex)
+    for i, v in ipairs(espColorBtns) do
+        v.btn.Text = i == activeIndex and "●" or "○"
+        v.btn.TextColor3 = i == activeIndex and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
+        v.btn.TextSize = i == activeIndex and 16 or 13
+    end
+end
 for i, cd in ipairs(espColorData) do
     local cb = Instance.new("TextButton", VisualPage)
     cb.Size = UDim2.new(0, 34, 0, 22)
     cb.Position = UDim2.new(0, (i-1) * 37, 0, 78)
-    cb.Text = cd[1]
-    cb.BackgroundColor3 = cd[2]
-    cb.TextColor3 = Color3.new(1,1,1)
+    cb.Text = "○"
+    cb.BackgroundColor3 = cd[1]
+    cb.TextColor3 = Color3.fromRGB(180,180,180)
     cb.Font = Enum.Font.GothamBold
-    cb.TextSize = 11
+    cb.TextSize = 13
     cb.AutoButtonColor = false
     Instance.new("UICorner", cb).CornerRadius = UDim.new(0, 6)
-    local cbStroke = Instance.new("UIStroke", cb)
-    cbStroke.Thickness = 0
-    table.insert(espColorBtns, {btn=cb, stroke=cbStroke, color=cd[2]})
+    table.insert(espColorBtns, {btn=cb, color=cd[1]})
+    local idx = i
     cb.MouseButton1Click:Connect(function()
         click()
-        espColor = cd[2]
-        -- update stroke on all color buttons
-        for _, v in ipairs(espColorBtns) do
-            v.stroke.Thickness = 0
-        end
-        cbStroke.Color = Color3.new(1,1,1)
-        cbStroke.Thickness = 2
-        -- update any active ESP highlights live
+        espColor = cd[1]
+        updateColorBtns(idx)
         for _, p in pairs(Players:GetPlayers()) do
             if p.Character then
                 local h = p.Character:FindFirstChild("FinestESP")
@@ -909,11 +901,10 @@ for i, cd in ipairs(espColorData) do
     end)
 end
 -- mark purple as default selected
-espColorBtns[1].stroke.Color = Color3.new(1,1,1)
-espColorBtns[1].stroke.Thickness = 2
+updateColorBtns(1)
 
 -- Health bar logic
-local function applyHealthBar(char)
+applyHealthBar = function(char)
     if char:FindFirstChild("FinestHealthBar") then return end
     local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
     local hum = char:FindFirstChildOfClass("Humanoid"); if not hum then return end
@@ -955,7 +946,7 @@ local skeletonBones = {
     {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
 }
 -- Skeleton logic - draws lines between joints using DrawLine via Frame in ScreenGui
-local function applySkeletonESP(p)
+applySkeletonESP = function(p)
     if not p.Character then return end
     local char = p.Character
     if char:FindFirstChild("FinestSkeleton") then return end
