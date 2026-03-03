@@ -34,6 +34,9 @@ local healthBarEnabled = false
 local skeletonEnabled = false
 local nightModeEnabled = false
 local chatSpamming = false
+local spectating = false
+local spectateTarget = nil
+local espColor = Color3.fromRGB(170, 0, 255) -- default purple, declared early so createESP can use it
 local WatermarkGui -- forward declare so onClose can reference it
 local FooterGui    -- forward declare so onClose can reference it
 local glowTween    -- forward declare so onClose can reference it
@@ -57,6 +60,9 @@ local function onClose()
     skeletonEnabled = false
     healthBarEnabled = false
     nightModeEnabled = false
+    spectating = false
+    spectateTarget = nil
+    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
     local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
     Lighting.Ambient = origAmbient
@@ -565,17 +571,88 @@ end)
 mouse.Button1Down:Connect(function() if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.p) + Vector3.new(0, 3, 0); playSound(12222242, 0.4) end end)
 
 --// [PLAYERS TAB]
-local PlayerScroll = Instance.new("ScrollingFrame", PlayersPage); PlayerScroll.Size = UDim2.new(1, 0, 1, 0); PlayerScroll.BackgroundTransparency = 1; PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0); PlayerScroll.ScrollBarThickness = 2
+local function stopSpectate()
+    if spectating then
+        spectating = false
+        spectateTarget = nil
+        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+        workspace.CurrentCamera.CameraSubject = player.Character and player.Character:FindFirstChildOfClass("Humanoid") or nil
+        activeFeatures["👁 Spec"] = false; updateFooter()
+    end
+end
+
+local PlayerScroll = Instance.new("ScrollingFrame", PlayersPage)
+PlayerScroll.Size = UDim2.new(1, 0, 1, 0); PlayerScroll.BackgroundTransparency = 1
+PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0); PlayerScroll.ScrollBarThickness = 2
 local UIList = Instance.new("UIListLayout", PlayerScroll); UIList.Padding = UDim.new(0, 5)
+
 local function refreshPlayers()
-    for _, v in pairs(PlayerScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for _, v in pairs(PlayerScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
     for _, p in pairs(Players:GetPlayers()) do if p ~= player then
-        local pBtn = Instance.new("TextButton", PlayerScroll); pBtn.Size = UDim2.new(1, -5, 0, 35); pBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 100); pBtn.Text = p.DisplayName; pBtn.TextColor3 = Color3.new(1, 1, 1); pBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", pBtn)
-        pBtn.MouseButton1Click:Connect(function() click(); if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame end end)
+        local row = Instance.new("Frame", PlayerScroll)
+        row.Size = UDim2.new(1, -5, 0, 35)
+        row.BackgroundTransparency = 1
+
+        -- name label
+        local nameBtn = Instance.new("TextButton", row)
+        nameBtn.Size = UDim2.new(1, -80, 1, 0)
+        nameBtn.Position = UDim2.new(0, 0, 0, 0)
+        nameBtn.BackgroundColor3 = Color3.fromRGB(60, 0, 100)
+        nameBtn.Text = p.DisplayName
+        nameBtn.TextColor3 = Color3.new(1,1,1)
+        nameBtn.Font = Enum.Font.GothamBold
+        nameBtn.TextSize = 13
+        Instance.new("UICorner", nameBtn).CornerRadius = UDim.new(0, 8)
+        nameBtn.MouseButton1Click:Connect(function()
+            click()
+            stopSpectate()
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
+            end
+        end)
+
+        -- spectate button
+        local specBtn = Instance.new("TextButton", row)
+        specBtn.Size = UDim2.new(0, 72, 1, 0)
+        specBtn.Position = UDim2.new(1, -72, 0, 0)
+        specBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
+        specBtn.Text = "👁 Spec"
+        specBtn.TextColor3 = Color3.new(1,1,1)
+        specBtn.Font = Enum.Font.GothamBold
+        specBtn.TextSize = 12
+        Instance.new("UICorner", specBtn).CornerRadius = UDim.new(0, 8)
+        specBtn.MouseButton1Click:Connect(function()
+            click()
+            if spectating and spectateTarget == p then
+                stopSpectate()
+                specBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
+                notify("Spectate: OFF", false)
+            else
+                stopSpectate()
+                spectating = true
+                spectateTarget = p
+                workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+                activeFeatures["👁 Spec"] = true; updateFooter()
+                specBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+                notify("Spectating: " .. p.DisplayName, true)
+            end
+        end)
     end end
     PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, UIList.AbsoluteContentSize.Y)
 end
 task.spawn(function() while task.wait(5) do if PlayersPage.Visible then refreshPlayers() end end end)
+
+-- Spectate loop - follows target camera every frame
+connections.spectate = RunService.RenderStepped:Connect(function()
+    if not spectating or not spectateTarget then return end
+    local char = spectateTarget.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hum then workspace.CurrentCamera.CameraSubject = hum
+        elseif hrp then workspace.CurrentCamera.CameraSubject = hrp end
+    end
+end)
 
 --// [FLING MODULE]
 -- Wrap troll content in a ScrollingFrame so everything fits
@@ -687,7 +764,7 @@ local function createESP(p)
             local hrp = char:WaitForChild("HumanoidRootPart", 5)
             if not hrp then return end
             if char:FindFirstChild("FinestESP") then return end
-            local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = Color3.fromRGB(170, 0, 255); h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
+            local h = Instance.new("Highlight", char); h.Name = "FinestESP"; h.FillColor = espColor; h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
             local b = Instance.new("BillboardGui", char); b.Name = "FinestName"; b.Size = UDim2.new(0, 200, 0, 50); b.Adornee = hrp; b.AlwaysOnTop = true; b.ExtentsOffset = Vector3.new(0, 3, 0)
             local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.fromRGB(190, 100, 255); t.Font = Enum.Font.GothamBold; t.TextSize = 14
         end
@@ -702,12 +779,31 @@ local function onCharacterSpawned(p, char)
         local hrp = char:WaitForChild("HumanoidRootPart", 10)
         local hum = char:WaitForChild("Humanoid", 10)
         if not hrp or not hum then return end
-        task.wait(0.5) -- small grace period for character to fully load
+        task.wait(0.5)
         if espEnabled then createESP(p) end
         if healthBarEnabled then applyHealthBar(char) end
         if skeletonEnabled then applySkeletonESP(p) end
     end)
 end
+
+-- Continuous scan - catches players who were far away, loaded late, or missed on first apply
+task.spawn(function()
+    while not closed do
+        task.wait(3)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local char = p.Character
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hrp and hum and hum.Health > 0 then
+                    if espEnabled and not char:FindFirstChild("FinestESP") then createESP(p) end
+                    if healthBarEnabled and not char:FindFirstChild("FinestHealthBar") then task.spawn(function() applyHealthBar(char) end) end
+                    if skeletonEnabled and not char:FindFirstChild("FinestSkeleton") then task.spawn(function() applySkeletonESP(p) end) end
+                end
+            end
+        end
+    end
+end)
 
 -- Hook every player's CharacterAdded for respawn detection
 local function hookPlayer(p)
@@ -770,6 +866,51 @@ local function setSubBtn(btn, on)
         TextColor3 = on and Color3.fromRGB(200, 255, 220) or Color3.fromRGB(180, 130, 255)
     }):Play()
 end
+
+-- ESP color picker
+local espColorData = {
+    {"💜", Color3.fromRGB(170, 0, 255)},
+    {"❤️", Color3.fromRGB(255, 30, 30)},
+    {"💙", Color3.fromRGB(0, 120, 255)},
+    {"💚", Color3.fromRGB(0, 220, 80)},
+    {"🧡", Color3.fromRGB(255, 140, 0)},
+}
+local espColorBtns = {}
+for i, cd in ipairs(espColorData) do
+    local cb = Instance.new("TextButton", VisualPage)
+    cb.Size = UDim2.new(0, 34, 0, 22)
+    cb.Position = UDim2.new(0, (i-1) * 37, 0, 78)
+    cb.Text = cd[1]
+    cb.BackgroundColor3 = cd[2]
+    cb.TextColor3 = Color3.new(1,1,1)
+    cb.Font = Enum.Font.GothamBold
+    cb.TextSize = 11
+    cb.AutoButtonColor = false
+    Instance.new("UICorner", cb).CornerRadius = UDim.new(0, 6)
+    local cbStroke = Instance.new("UIStroke", cb)
+    cbStroke.Thickness = 0
+    table.insert(espColorBtns, {btn=cb, stroke=cbStroke, color=cd[2]})
+    cb.MouseButton1Click:Connect(function()
+        click()
+        espColor = cd[2]
+        -- update stroke on all color buttons
+        for _, v in ipairs(espColorBtns) do
+            v.stroke.Thickness = 0
+        end
+        cbStroke.Color = Color3.new(1,1,1)
+        cbStroke.Thickness = 2
+        -- update any active ESP highlights live
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                local h = p.Character:FindFirstChild("FinestESP")
+                if h then h.FillColor = espColor end
+            end
+        end
+    end)
+end
+-- mark purple as default selected
+espColorBtns[1].stroke.Color = Color3.new(1,1,1)
+espColorBtns[1].stroke.Thickness = 2
 
 -- Health bar logic
 local function applyHealthBar(char)
