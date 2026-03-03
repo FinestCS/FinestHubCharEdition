@@ -21,6 +21,9 @@ local ghostEnabled = false
 local spinning = false
 local triggerbotEnabled = false
 local espEnabled = false
+local orbiting = false
+local orbitTarget = nil
+local orbitAngle = 0
 local function onClose()
     if closed then return end
     closed = true
@@ -32,6 +35,8 @@ local function onClose()
     spinning = false
     triggerbotEnabled = false
     espEnabled = false
+    orbiting = false
+    orbitTarget = nil
     if player.Character then
         local hum = player.Character:FindFirstChildOfClass("Humanoid")
         local hrp = player.Character:FindFirstChild("HumanoidRootPart")
@@ -109,9 +114,16 @@ RunService.RenderStepped:Connect(function(dt) WText.Text = "Finest Hub | Char Ed
 
 --// [MAIN UI]
 local Main = Instance.new("Frame", gui)
-Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,0.5,-150); Main.BackgroundColor3 = Color3.fromRGB(35,0,60); Main.BackgroundTransparency = 0.2; Main.Active = true; Main.Draggable = true
+Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,-1,-150); Main.BackgroundColor3 = Color3.fromRGB(35,0,60); Main.BackgroundTransparency = 0.2; Main.Active = true; Main.Draggable = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
 local Glow = Instance.new("UIStroke", Main); Glow.Color = Color3.fromRGB(170, 0, 255); Glow.Thickness = 3.5; Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- Slide in from above with bounce
+task.delay(0.05, function()
+    TweenService:Create(Main, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -275, 0.5, -150)
+    }):Play()
+end)
 
 --// [PULSING GLOW ANIMATION - smooth infinite sine]
 local pulsing = true
@@ -124,7 +136,7 @@ glowTween:Play()
 
 local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255); Title.RichText = true
 
---// [ANIMATED TITLE - cycles each letter through purple shades in sync with glow]
+--// [TITLE ANIMATION - typewriter intro then wave]
 local titleChars = {"F","i","n","e","s","t"," ","H","u","b"}
 local titleColors = {
     Color3.fromRGB(220, 180, 255),
@@ -134,21 +146,38 @@ local titleColors = {
     Color3.fromRGB(180,  60, 255),
     Color3.fromRGB(200, 120, 255),
 }
+local function buildWaveText(offset)
+    local result = ""
+    for i, ch in ipairs(titleChars) do
+        if ch == " " then
+            result = result .. " "
+        else
+            local colorIndex = ((i + offset - 1) % #titleColors) + 1
+            local c = titleColors[colorIndex]
+            local hex = string.format("%02X%02X%02X", math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
+            result = result .. "<font color='#" .. hex .. "'>" .. ch .. "</font>"
+        end
+    end
+    return result
+end
 task.spawn(function()
+    -- typewriter phase
+    Title.Text = ""
+    task.wait(0.4) -- slight delay so menu finishes sliding in first
+    for i = 1, #titleChars do
+        if closed then return end
+        local partial = ""
+        for j = 1, i do
+            partial = partial .. titleChars[j]
+        end
+        Title.Text = partial
+        task.wait(0.07)
+    end
+    task.wait(0.3)
+    -- wave phase
     local offset = 0
     while not closed do
-        local result = ""
-        for i, ch in ipairs(titleChars) do
-            if ch == " " then
-                result = result .. " "
-            else
-                local colorIndex = ((i + offset - 1) % #titleColors) + 1
-                local c = titleColors[colorIndex]
-                local hex = string.format("%02X%02X%02X", math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
-                result = result .. "<font color='#" .. hex .. "'>" .. ch .. "</font>"
-            end
-        end
-        Title.Text = result
+        Title.Text = buildWaveText(offset)
         offset = (offset + 1) % #titleColors
         task.wait(0.18)
     end
@@ -353,9 +382,23 @@ local function addBox(parent, placeholder, y, default)
     local box = Instance.new("TextBox", parent); box.Size = UDim2.new(0,180,0,45); box.Position = UDim2.new(0,0,0,y); box.PlaceholderText = placeholder; box.Text = default or ""; box.BackgroundColor3 = Color3.fromRGB(60,0,100); box.TextColor3 = Color3.new(1,1,1); box.Font = Enum.Font.GothamBold; box.TextSize = 16
     Instance.new("UICorner", box).CornerRadius = UDim.new(0,10); return box
 end
-local function addBtn(parent, text, y)
+local function addBtn(parent, text, y, keybind)
     local btn = Instance.new("TextButton", parent); btn.Size = UDim2.new(0,180,0,45); btn.Position = UDim2.new(0,0,0,y); btn.Text = text; btn.BackgroundColor3 = Color3.fromRGB(120,0,200); btn.TextColor3 = Color3.new(1,1,1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 18
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10); return btn
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,10)
+    if keybind then
+        local hint = Instance.new("TextLabel", btn)
+        hint.Size = UDim2.new(0, 28, 0, 16)
+        hint.Position = UDim2.new(1, -31, 1, -18)
+        hint.BackgroundColor3 = Color3.fromRGB(80, 0, 140)
+        hint.BackgroundTransparency = 0.2
+        hint.Text = keybind
+        hint.Font = Enum.Font.GothamBold
+        hint.TextSize = 10
+        hint.TextColor3 = Color3.fromRGB(200, 160, 255)
+        hint.ZIndex = 2
+        Instance.new("UICorner", hint).CornerRadius = UDim.new(0, 4)
+    end
+    return btn
 end
 
 --// [SPEED MODULE]
@@ -363,7 +406,7 @@ local speedBox = addBox(SpeedPage, "Enter Speed", 0); local setSpeed = addBtn(Sp
 setSpeed.MouseButton1Click:Connect(function() click(); if player.Character then player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = tonumber(speedBox.Text) or 16 end end)
 
 --// [FLY MODULE]
-local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55)
+local FlySpeedBox = addBox(FlyPage, "Fly Speed", 0, "70"); local FlyBtn = addBtn(FlyPage, "Toggle Fly: OFF", 55, "[F]")
 FlyBtn.MouseButton1Click:Connect(function()
     click(); flying = not flying
     FlyBtn.Text = flying and "Toggle Fly: ON" or "Toggle Fly: OFF"
@@ -375,7 +418,7 @@ FlyBtn.MouseButton1Click:Connect(function()
 end)
 
 --// [GHOST MODULE]
-local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0)
+local ghostBtn = addBtn(GhostPage, "Ghost: OFF", 0, "[G]")
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled = not ghostEnabled
     ghostBtn.Text = ghostEnabled and "Ghost: ON" or "Ghost: OFF"
@@ -431,6 +474,33 @@ FBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+--// [ORBIT PLAYER MODULE]
+local orbiting = false
+local orbitTarget = nil
+local orbitAngle = 0
+local OrbitTargetBox = addBox(TrollPage, "Target name", 110, "")
+local OrbitBtn = addBtn(TrollPage, "Orbit: OFF", 160)
+OrbitBtn.MouseButton1Click:Connect(function()
+    click()
+    local targetName = OrbitTargetBox.Text
+    local found = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Name:lower():find(targetName:lower()) then
+            found = p; break
+        end
+    end
+    if not orbiting and not found then
+        notify("Orbit: Player not found!", false)
+        return
+    end
+    orbiting = not orbiting
+    orbitTarget = orbiting and found or nil
+    OrbitBtn.Text = orbiting and "Orbit: ON" or "Orbit: OFF"
+    OrbitBtn.BackgroundColor3 = orbiting and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(120, 0, 200)
+    activeFeatures["🌐 Orbit"] = orbiting; updateFooter()
+    notify("Orbit: " .. (orbiting and ("ON → " .. (found and found.DisplayName or "?")) or "OFF"), orbiting)
+end)
+
 --// [VISUALS]
 local function createESP(p)
     if p == player then return end
@@ -443,7 +513,7 @@ local function createESP(p)
     p.CharacterAdded:Connect(apply); if p.Character then apply() end
 end
 local function removeESP() for _, v in pairs(Players:GetPlayers()) do if v.Character then if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end end end end
-local EspBtn = addBtn(VisualPage, "ESP: OFF", 0)
+local EspBtn = addBtn(VisualPage, "ESP: OFF", 0, "[E]")
 EspBtn.MouseButton1Click:Connect(function()
     click(); espEnabled = not espEnabled
     EspBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
@@ -474,6 +544,15 @@ connections.renderStepped = RunService.RenderStepped:Connect(function()
         bv.Velocity = (direction.Magnitude > 0) and (direction.Unit * (tonumber(FlySpeedBox.Text) or 70)) or Vector3.zero; bg.CFrame = cam.CFrame
     end
     if ghostEnabled and not spinning then for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+    if orbiting and orbitTarget and orbitTarget.Character and orbitTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local targetHRP = orbitTarget.Character.HumanoidRootPart
+        orbitAngle = orbitAngle + 0.03
+        local radius = 8
+        local ox = targetHRP.Position.X + math.cos(orbitAngle) * radius
+        local oz = targetHRP.Position.Z + math.sin(orbitAngle) * radius
+        local oy = targetHRP.Position.Y
+        hrp.CFrame = CFrame.new(Vector3.new(ox, oy, oz), targetHRP.Position)
+    end
 end)
 
 --// [DYNAMIC AUTO-RETURN]
@@ -485,7 +564,7 @@ task.spawn(function()
 end)
 
 --// [TRIGGERBOT ADDON - COMPLETELY ISOLATED]
-local TriggerBtn = addBtn(TriggerPage, "Triggerbot: OFF", 0)
+local TriggerBtn = addBtn(TriggerPage, "Triggerbot: OFF", 0, "[T]")
 TriggerBtn.MouseButton1Click:Connect(function()
     click(); triggerbotEnabled = not triggerbotEnabled
     TriggerBtn.Text = triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"
