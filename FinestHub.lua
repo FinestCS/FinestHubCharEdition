@@ -122,7 +122,37 @@ local glowTween = TweenService:Create(
 )
 glowTween:Play()
 
-local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255)
+local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255); Title.RichText = true
+
+--// [ANIMATED TITLE - cycles each letter through purple shades in sync with glow]
+local titleChars = {"F","i","n","e","s","t"," ","H","u","b"}
+local titleColors = {
+    Color3.fromRGB(220, 180, 255),
+    Color3.fromRGB(200, 120, 255),
+    Color3.fromRGB(180,  60, 255),
+    Color3.fromRGB(160,   0, 240),
+    Color3.fromRGB(180,  60, 255),
+    Color3.fromRGB(200, 120, 255),
+}
+task.spawn(function()
+    local offset = 0
+    while not closed do
+        local result = ""
+        for i, ch in ipairs(titleChars) do
+            if ch == " " then
+                result = result .. " "
+            else
+                local colorIndex = ((i + offset - 1) % #titleColors) + 1
+                local c = titleColors[colorIndex]
+                local hex = string.format("%02X%02X%02X", math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
+                result = result .. "<font color='#" .. hex .. "'>" .. ch .. "</font>"
+            end
+        end
+        Title.Text = result
+        offset = (offset + 1) % #titleColors
+        task.wait(0.18)
+    end
+end)
 local Close = Instance.new("TextButton", Main); Close.Size = UDim2.new(0,40,0,40); Close.Position = UDim2.new(1,-45,0,0); Close.Text = "X"; Close.BackgroundTransparency = 1; Close.TextColor3 = Color3.fromRGB(255,120,200); Close.Font = Enum.Font.GothamBold; Close.TextSize = 22
 -- Close wired below after FooterGui is declared
 local Min = Instance.new("TextButton", Main); Min.Size = UDim2.new(0,40,0,40); Min.Position = UDim2.new(1,-85,0,0); Min.Text = "-"; Min.BackgroundTransparency = 1; Min.TextColor3 = Color3.fromRGB(200,150,255); Min.Font = Enum.Font.GothamBold; Min.TextSize = 28
