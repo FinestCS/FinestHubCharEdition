@@ -194,7 +194,7 @@ local function notify(text, isOn)
 end
 
 WatermarkGui = Instance.new("ScreenGui", game.CoreGui)
-WatermarkGui.Name = "FinestWatermark"
+WatermarkGui.Name = "FinestWatermark"; WatermarkGui.Enabled = false
 local WFrame = Instance.new("Frame", WatermarkGui)
 WFrame.Size = UDim2.new(0, 380, 0, 30); WFrame.Position = UDim2.new(1, -390, 0, 10)
 WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparency = 0.3
@@ -241,7 +241,67 @@ local sheenGrad = Instance.new("UIGradient", glassSheen)
 sheenGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(0,0,0)),ColorSequenceKeypoint.new(0.3,Color3.new(1,1,1)),ColorSequenceKeypoint.new(0.7,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))})
 
 local Glow = Instance.new("UIStroke", Main); Glow.Color = Color3.fromRGB(170,0,255); Glow.Thickness = 2; Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; Glow.Transparency = 0.3
-task.delay(0.05, function()
+task.spawn(function()
+    introGui = Instance.new("ScreenGui", game.CoreGui)
+    introGui.Name = "FinestIntro"; introGui.ResetOnSpawn = false; introGui.IgnoreGuiInset = true
+    introBg = Instance.new("Frame", introGui); introBg.Size = UDim2.new(1,0,1,0); introBg.BackgroundColor3 = Color3.fromRGB(8,0,18); introBg.BackgroundTransparency = 0; introBg.BorderSizePixel = 0; introBg.ZIndex = 10
+    introLbl = Instance.new("TextLabel", introBg); introLbl.Size = UDim2.new(1,0,0,80); introLbl.AnchorPoint = Vector2.new(0.5,0.5); introLbl.Position = UDim2.new(0.5,0,0.5,0); introLbl.BackgroundTransparency = 1; introLbl.Font = Enum.Font.GothamBold; introLbl.TextSize = 48; introLbl.TextColor3 = Color3.fromRGB(255,215,0); introLbl.RichText = true; introLbl.ZIndex = 11
+    introSub = Instance.new("TextLabel", introBg); introSub.Size = UDim2.new(1,0,0,28); introSub.AnchorPoint = Vector2.new(0.5,0.5); introSub.Position = UDim2.new(0.5,0,0.5,50); introSub.BackgroundTransparency = 1; introSub.Font = Enum.Font.Gotham; introSub.TextSize = 16; introSub.TextColor3 = Color3.fromRGB(180,100,255); introSub.Text = "finest hub"; introSub.TextTransparency = 1; introSub.ZIndex = 11
+    -- intro particles
+    introParticleLoop = true
+    task.spawn(function()
+        introColors = {Color3.fromRGB(255,215,0),Color3.fromRGB(200,100,255),Color3.fromRGB(255,180,50),Color3.fromRGB(170,0,255),Color3.fromRGB(255,255,200)}
+        while introParticleLoop do
+            task.wait(0.06)
+            ipc = Instance.new("Frame", introBg)
+            ipc.BorderSizePixel = 0; ipc.ZIndex = 10
+            ipcSz = math.random(2,6); ipc.Size = UDim2.new(0,ipcSz,0,ipcSz)
+            ipc.BackgroundColor3 = introColors[math.random(1,#introColors)]
+            ipc.Position = UDim2.new(math.random(0,100)/100, 0, 1, 0)
+            Instance.new("UICorner", ipc).CornerRadius = UDim.new(1,0)
+            ipcDriftX = math.random(-40,40); ipcDur = math.random(12,22)/10
+            TweenService:Create(ipc, TweenInfo.new(ipcDur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(ipc.Position.X.Scale, ipcDriftX, -0.1, 0),
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0,1,0,1)
+            }):Play()
+            game.Debris:AddItem(ipc, ipcDur+0.1)
+        end
+    end)
+    -- subtle bg pulse
+    task.spawn(function()
+        while introParticleLoop do
+            TweenService:Create(introBg, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(20,0,40)}):Play()
+            task.wait(1.2)
+            TweenService:Create(introBg, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundColor3 = Color3.fromRGB(5,0,15)}):Play()
+            task.wait(1.2)
+        end
+    end)
+    glitchPool = {"#","@","!","%","&","*","?","X","Z","$","~","^","/","\\","|","<",">"}
+    glitchTarget = "Char Edition"
+    glitchFn = function(resolve)
+        glitchOut = ""
+        for gi = 1, #glitchTarget do
+            if gi <= resolve or glitchTarget:sub(gi,gi) == " " then glitchOut = glitchOut .. glitchTarget:sub(gi,gi)
+            else glitchOut = glitchOut .. glitchPool[math.random(1,#glitchPool)] end
+        end
+        return glitchOut
+    end
+    glitchT0 = tick()
+    while tick()-glitchT0 < 0.6 do introLbl.Text = glitchFn(0); task.wait(0.05) end
+    for gi = 0, #glitchTarget do
+        for _ = 1, 3 do introLbl.Text = glitchFn(gi); task.wait(0.04) end
+    end
+    introLbl.Text = glitchTarget
+    TweenService:Create(introSub, TweenInfo.new(0.4), {TextTransparency = 0}):Play()
+    task.wait(1.0)
+    TweenService:Create(introBg, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(introLbl, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    TweenService:Create(introSub, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    task.wait(0.5)
+    introParticleLoop = false
+    introGui:Destroy()
+    FooterGui.Enabled=true; WatermarkGui.Enabled=true
     TweenService:Create(Main, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5,-275,0.5,-150)}):Play()
 end)
 glowTween = TweenService:Create(Glow, TweenInfo.new(2.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Thickness=2.5, Color=Color3.fromRGB(195,65,255), Transparency=0})
@@ -292,7 +352,7 @@ Sidebar.Size=UDim2.new(0,140,1,-55); Sidebar.Position=UDim2.new(0,5,0,45); Sideb
 Sidebar.ScrollBarThickness=3; Sidebar.ScrollBarImageColor3=Color3.fromRGB(130,0,200); Sidebar.CanvasSize=UDim2.new(0,0,0,255); Sidebar.BorderSizePixel=0
 Instance.new("UICorner", Sidebar).CornerRadius=UDim.new(0,14)
 
-FooterGui = Instance.new("ScreenGui", game.CoreGui); FooterGui.Name="FinestFooter"
+FooterGui = Instance.new("ScreenGui", game.CoreGui); FooterGui.Name="FinestFooter"; FooterGui.Enabled=false
 local Footer = Instance.new("Frame", FooterGui); Footer.Size=UDim2.new(0,380,0,26); Footer.Position=UDim2.new(1,-390,0,45); Footer.BackgroundColor3=Color3.fromRGB(20,0,40); Footer.BackgroundTransparency=0.3
 Instance.new("UICorner", Footer).CornerRadius=UDim.new(0,6)
 local FooterStroke = Instance.new("UIStroke", Footer); FooterStroke.Color=Color3.fromRGB(170,0,255); FooterStroke.Thickness=1.5
