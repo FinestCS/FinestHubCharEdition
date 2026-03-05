@@ -61,19 +61,6 @@ local function onClose()
     spectating = false; spectateTarget = nil; freezeEnabled = false; freezeTarget = nil
     infiniteJump = false
     swimEnabled = false; workspace.Gravity = 196.2
-    if invisEnabled then
-        invisEnabled = false
-        if player.Character then
-            for _, part in pairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") or part:IsA("Decal") then
-                    part.Transparency = part.Name == "HumanoidRootPart" and 1 or 0
-                elseif part:IsA("Accessory") then
-                    local handle = part:FindFirstChild("Handle")
-                    if handle then handle.Transparency = 0 end
-                end
-            end
-        end
-    end
     workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
     local existingNight = Lighting:FindFirstChild("FinestNight")
     if existingNight then existingNight:Destroy() end
@@ -95,6 +82,10 @@ local function onClose()
             if p.Character:FindFirstChild("FinestSkeleton") then p.Character.FinestSkeleton:Destroy() end
         end
     end
+    if connections.renderStepped then connections.renderStepped:Disconnect() end
+    if connections.inputBegan then connections.inputBegan:Disconnect() end
+    if connections.m2Began then connections.m2Began:Disconnect() end
+    if connections.m2Ended then connections.m2Ended:Disconnect() end
     if glowTween then glowTween:Cancel() end
     if WatermarkGui then WatermarkGui:Destroy() end
     if FooterGui then FooterGui:Destroy() end
@@ -212,28 +203,21 @@ local WStroke = Instance.new("UIStroke", WFrame); WStroke.Color = Color3.fromRGB
 local WText = Instance.new("TextLabel", WFrame); WText.Size = UDim2.new(1,0,1,0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1,1,1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14; WText.RichText = true
 
 -- smooth FPS counter + dynamic color
-local displayFps = 60
-RunService.RenderStepped:Connect(function(dt)
-    local realFps = 1 / dt
-    -- lerp display value toward real fps for smooth rolling number
-    displayFps = displayFps + (realFps - displayFps) * 0.1
-    local shown = math.floor(displayFps)
-    -- pick color based on fps range
-    local fpsColor
-    if shown >= 60 then
-        fpsColor = "#00FF44"          -- green
-    elseif shown >= 45 then
-        fpsColor = "#AAFF00"          -- yellow-green
-    elseif shown >= 30 then
-        fpsColor = "#FFCC00"          -- yellow
-    elseif shown >= 15 then
-        fpsColor = "#FF6600"          -- orange
-    else
-        fpsColor = "#FF2222"          -- red
-    end
-    WText.Text = "Finest Hub | Char Edition | FPS: <font color='" .. fpsColor .. "'><b>" .. shown .. "</b></font> | <font color='#00FF44'>[ Anti AFK: On ]</font>"
-end)
+WText.Text = "Finest Hub | Char Edition | <font color='#00FF44'>[ Anti AFK: On ]</font>"
 
+local _wt = 0
+local _wConn = RunService.RenderStepped:Connect(function(dt)
+    if closed then return end
+    _wt = _wt + dt * 1.2
+    -- pulse between deep gold (#B8860B) and bright gold (#FFD700)
+    local t = (math.sin(_wt) + 1) / 2
+    local r = math.floor(184 + 71 * t)
+    local g = math.floor(134 + 81 * t)
+    local b2 = math.floor(11 + 0 * t)
+    local hex = string.format("%02X%02X%02X", r, g, b2)
+    WText.Text = "Finest Hub | <font color='#" .. hex .. "'><b>Char Edition</b></font> | <font color='#00FF44'>[ Anti AFK: On ]</font>"
+end)
+table.insert(connections, _wConn)
 local Main = Instance.new("Frame", gui)
 Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,-1,-150); Main.BackgroundColor3 = Color3.fromRGB(22,0,42); Main.BackgroundTransparency = 0.08; Main.Active = true; Main.Draggable = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
@@ -469,27 +453,7 @@ setHealthBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local invisEnabled=false
-local InvisBtn=addBtn(MiscPage,"Invisible: OFF",110)
-InvisBtn.MouseButton1Click:Connect(function()
-    click(); invisEnabled=not invisEnabled; InvisBtn.Text=invisEnabled and "Invisible: ON" or "Invisible: OFF"; InvisBtn.BackgroundColor3=invisEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["👻 Invis"]=invisEnabled; updateFooter()
-    local char=player.Character
-    if char then
-        for _,part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") or part:IsA("Decal") then part.Transparency=invisEnabled and 1 or (part.Name=="HumanoidRootPart" and 1 or 0)
-            elseif part:IsA("Accessory") then local handle=part:FindFirstChild("Handle"); if handle then handle.Transparency=invisEnabled and 1 or 0 end end
-        end
-    end
-    notify("Invisible: "..(invisEnabled and "ON" or "OFF"),invisEnabled)
-end)
-player.CharacterAdded:Connect(function(char)
-    if not invisEnabled then return end; task.wait(0.5)
-    for _,part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("Decal") then part.Transparency=1 elseif part:IsA("Accessory") then local handle=part:FindFirstChild("Handle"); if handle then handle.Transparency=1 end end
-    end
-end)
-
-local ghostBtn=addBtn(MiscPage,"Ghost: OFF",165,"[G]")
+local ghostBtn=addBtn(MiscPage,"Ghost: OFF",110,"[G]")
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled=not ghostEnabled; ghostBtn.Text=ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3=ghostEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["👻 Ghost"]=ghostEnabled; updateFooter()
 end)
@@ -544,7 +508,7 @@ UIS.JumpRequest:Connect(function()
     if infiniteJump and player.Character then local hum=player.Character:FindFirstChildOfClass("Humanoid"); if hum and hum:GetState()~=Enum.HumanoidStateType.Dead then hum:ChangeState(Enum.HumanoidStateType.Jumping) end end
 end)
 
-sectionLabel("-- Swim in Air",340)
+sectionLabel("── Swim in Air",340)
 local swimEnabled = false
 local SwimBtn = moveBtn("Swim in Air: OFF", 358)
 moveScroll.CanvasSize = UDim2.new(0,0,0,415)
@@ -923,3 +887,82 @@ end)
 table.insert(connections,settingsInputConn)
 
 Close.MouseButton1Click:Connect(function() menuSound(); onClose() end)
+
+--// [LOOT ESP - Visuals Tab]
+local LootEspBtn = Instance.new("TextButton", VisualPage)
+LootEspBtn.Size = UDim2.new(0,180,0,40); LootEspBtn.Position = UDim2.new(0,0,0,126)
+LootEspBtn.Text = "Loot ESP: OFF"; LootEspBtn.BackgroundColor3 = Color3.fromRGB(120,0,200)
+LootEspBtn.TextColor3 = Color3.new(1,1,1); LootEspBtn.Font = Enum.Font.GothamBold; LootEspBtn.TextSize = 16
+Instance.new("UICorner", LootEspBtn).CornerRadius = UDim.new(0,10)
+
+local lootRangeLabel = Instance.new("TextLabel", VisualPage)
+lootRangeLabel.Size = UDim2.new(0,80,0,14); lootRangeLabel.Position = UDim2.new(0,0,0,172)
+lootRangeLabel.BackgroundTransparency = 1; lootRangeLabel.Text = "Range (studs):"
+lootRangeLabel.Font = Enum.Font.Gotham; lootRangeLabel.TextSize = 11
+lootRangeLabel.TextColor3 = Color3.fromRGB(200,170,255); lootRangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local lootRangeBox = Instance.new("TextBox", VisualPage)
+lootRangeBox.Size = UDim2.new(0,90,0,28); lootRangeBox.Position = UDim2.new(0,85,0,168)
+lootRangeBox.Text = "200"; lootRangeBox.PlaceholderText = "200"
+lootRangeBox.BackgroundColor3 = Color3.fromRGB(60,0,100); lootRangeBox.TextColor3 = Color3.new(1,1,1)
+lootRangeBox.Font = Enum.Font.GothamBold; lootRangeBox.TextSize = 14
+Instance.new("UICorner", lootRangeBox).CornerRadius = UDim.new(0,8)
+
+local lootEspEnabled = false
+
+local function clearLootLabels()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        local bb = obj:FindFirstChild("LootESP")
+        if bb then bb:Destroy() end
+    end
+end
+
+local function updateLootESP()
+    clearLootLabels()
+    if not lootEspEnabled then return end
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local maxDist = tonumber(lootRangeBox.Text) or 200
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if not obj:FindFirstChild("LootESP") then
+            local part = nil
+            if obj:IsA("BasePart") then part = obj
+            elseif obj:IsA("Model") then part = obj.PrimaryPart end
+            if part then
+                local dist = (part.Position - hrp.Position).Magnitude
+                if dist <= maxDist then
+                    local name = obj.Name:lower()
+                    if name:find("loot") or name:find("drop") or name:find("pickup") or name:find("item") or name:find("chest") or name:find("coin") or name:find("gem") or name:find("weapon") or name:find("gun") or name:find("ammo") or name:find("crate") or name:find("bag") or name:find("supply") or name:find("reward") or name:find("cash") or name:find("money") or name:find("gold") or name:find("key") or name:find("orb") or name:find("shard") or name:find("mat") or name:find("resource") then
+                        local bb = Instance.new("BillboardGui", part)
+                        bb.Name = "LootESP"; bb.AlwaysOnTop = true
+                        bb.Size = UDim2.new(0,120,0,28); bb.StudsOffset = Vector3.new(0,2,0)
+                        local lbl = Instance.new("TextLabel", bb)
+                        lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 0.4
+                        lbl.BackgroundColor3 = Color3.fromRGB(20,0,40)
+                        lbl.Text = obj.Name .. " [" .. math.floor(dist) .. "]"
+                        lbl.TextColor3 = Color3.fromRGB(255,210,60)
+                        lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 12
+                        Instance.new("UICorner", lbl).CornerRadius = UDim.new(0,6)
+                    end
+                end
+            end
+        end
+    end
+end
+
+LootEspBtn.MouseButton1Click:Connect(function()
+    click()
+    lootEspEnabled = not lootEspEnabled
+    LootEspBtn.Text = lootEspEnabled and "Loot ESP: ON" or "Loot ESP: OFF"
+    LootEspBtn.BackgroundColor3 = lootEspEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["Loot"] = lootEspEnabled; updateFooter()
+    if lootEspEnabled then updateLootESP() else clearLootLabels() end
+    notify("Loot ESP: " .. (lootEspEnabled and "ON" or "OFF"), lootEspEnabled)
+end)
+
+task.spawn(function()
+    while not closed do
+        task.wait(0.5)
+        if lootEspEnabled then updateLootESP() end
+    end
+end)
