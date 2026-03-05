@@ -60,6 +60,7 @@ local function onClose()
     skeletonEnabled = false; healthBarEnabled = false; nightModeEnabled = false
     spectating = false; spectateTarget = nil; freezeEnabled = false; freezeTarget = nil
     infiniteJump = false
+    swimEnabled = false; workspace.Gravity = 196.2
     if invisEnabled then
         invisEnabled = false
         if player.Character then
@@ -543,6 +544,25 @@ UIS.JumpRequest:Connect(function()
     if infiniteJump and player.Character then local hum=player.Character:FindFirstChildOfClass("Humanoid"); if hum and hum:GetState()~=Enum.HumanoidStateType.Dead then hum:ChangeState(Enum.HumanoidStateType.Jumping) end end
 end)
 
+sectionLabel("-- Swim in Air",340)
+local swimEnabled = false
+local SwimBtn = moveBtn("Swim in Air: OFF", 358)
+moveScroll.CanvasSize = UDim2.new(0,0,0,415)
+SwimBtn.MouseButton1Click:Connect(function()
+    click(); swimEnabled = not swimEnabled
+    SwimBtn.Text = swimEnabled and "Swim in Air: ON" or "Swim in Air: OFF"
+    SwimBtn.BackgroundColor3 = swimEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["Swim"] = swimEnabled; updateFooter()
+    if not swimEnabled then
+        workspace.Gravity = 196.2
+        if player.Character then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
+        end
+    end
+    notify("Swim in Air: "..(swimEnabled and "ON" or "OFF"), swimEnabled)
+end)
+
 --// [TP MODULE]
 local savedPosition,autoReturn=nil,false; local clickTpEnabled=false
 local saveBtn=addBtn(TPPage,"Save Position",0); local tpBtn=addBtn(TPPage,"Teleport",55); local autoBtn=addBtn(TPPage,"Auto-Return: OFF",110); local autoTimeBox=addBox(TPPage,"Delay",110,"3.5")
@@ -754,6 +774,20 @@ connections.renderStepped=RunService.RenderStepped:Connect(function()
         bv.Velocity=(direction.Magnitude>0) and (direction.Unit*(tonumber(FlySpeedBox.Text) or 70)) or Vector3.zero; bg.CFrame=cam.CFrame
     end
     if ghostEnabled and not spinning then for _,v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide=false end end end
+    if swimEnabled then
+        workspace.Gravity = 5
+        -- force swim animation state
+        hum:ChangeState(Enum.HumanoidStateType.Swimming)
+        local cam = workspace.CurrentCamera; local swimDir = Vector3.zero
+        if UIS:IsKeyDown(Enum.KeyCode.W) then swimDir = swimDir + cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then swimDir = swimDir - cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then swimDir = swimDir - cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then swimDir = swimDir + cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then swimDir = swimDir + Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then swimDir = swimDir - Vector3.new(0,1,0) end
+        if swimDir.Magnitude > 0 then hrp.Velocity = swimDir.Unit * 20
+        else hrp.Velocity = hrp.Velocity * 0.85 end
+    end
     if orbiting and orbitTarget and orbitTarget.Character and orbitTarget.Character:FindFirstChild("HumanoidRootPart") then
         local targetHRP=orbitTarget.Character.HumanoidRootPart; orbitAngle=orbitAngle+0.03; local radius=8
         local ox=targetHRP.Position.X+math.cos(orbitAngle)*radius; local oz=targetHRP.Position.Z+math.sin(orbitAngle)*radius; local oy=targetHRP.Position.Y
