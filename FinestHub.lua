@@ -132,8 +132,8 @@ local function notify(text, isOn)
     end
 
     local notif = Instance.new("Frame", gui)
-    notif.Size = UDim2.new(0, 250, 0, 45)
-    notif.Position = UDim2.new(1, 20, 1, notifYOffset) -- start off-screen right
+    notif.Size = UDim2.new(0, 250, 0, 48)
+    notif.Position = UDim2.new(1, 20, 1, notifYOffset)
     notif.BackgroundColor3 = isOn and Color3.fromRGB(0, 180, 90) or Color3.fromRGB(110, 0, 190)
     notif.BackgroundTransparency = 0
     notif.ZIndex = 20
@@ -148,11 +148,28 @@ local function notify(text, isOn)
     Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 12)
 
     local label = Instance.new("TextLabel", notif)
-    label.Size = UDim2.new(1, -16, 1, 0); label.Position = UDim2.new(0, 12, 0, 0)
+    label.Size = UDim2.new(1, -16, 0, 38); label.Position = UDim2.new(0, 12, 0, 0)
     label.BackgroundTransparency = 1; label.Text = text
     label.Font = Enum.Font.GothamBold; label.TextSize = 14
     label.TextColor3 = Color3.new(1, 1, 1); label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 21; label.TextTruncate = Enum.TextTruncate.AtEnd
+
+    -- progress bar track (dark background)
+    local barTrack = Instance.new("Frame", notif)
+    barTrack.Size = UDim2.new(1, 0, 0, 3)
+    barTrack.Position = UDim2.new(0, 0, 1, -3)
+    barTrack.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    barTrack.BackgroundTransparency = 0.5
+    barTrack.BorderSizePixel = 0
+    barTrack.ZIndex = 22
+
+    -- progress bar fill (drains left to right over 2.2s)
+    local barFill = Instance.new("Frame", barTrack)
+    barFill.Size = UDim2.new(1, 0, 1, 0)
+    barFill.BackgroundColor3 = isOn and Color3.fromRGB(0, 255, 140) or Color3.fromRGB(200, 100, 255)
+    barFill.BorderSizePixel = 0
+    barFill.ZIndex = 23
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
 
     table.insert(activeNotifs, notif)
 
@@ -161,17 +178,24 @@ local function notify(text, isOn)
         Position = UDim2.new(1, -265, 1, notifYOffset)
     }):Play()
 
-    task.delay(2.2, function()
+    -- drain the progress bar over the display duration (2.2s)
+    task.delay(0.3, function()
+        if not barFill or not barFill.Parent then return end
+        TweenService:Create(barFill, TweenInfo.new(2.2, Enum.EasingStyle.Linear), {
+            Size = UDim2.new(0, 0, 1, 0)
+        }):Play()
+    end)
+
+    task.delay(2.5, function()
         if not notif or not notif.Parent then return end
-        -- slide OUT to right + fade
         TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
             Position = UDim2.new(1, 20, 1, notif.Position.Y.Offset),
             BackgroundTransparency = 1
         }):Play()
         TweenService:Create(label, TweenInfo.new(0.25), { TextTransparency = 1 }):Play()
         TweenService:Create(accent, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(barFill, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
         task.wait(0.35)
-        -- remove from active list
         for i, n in ipairs(activeNotifs) do if n == notif then table.remove(activeNotifs, i); break end end
         if notif and notif.Parent then notif:Destroy() end
     end)
@@ -185,16 +209,57 @@ WFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 40); WFrame.BackgroundTransparen
 Instance.new("UICorner", WFrame).CornerRadius = UDim.new(0, 6)
 local WStroke = Instance.new("UIStroke", WFrame); WStroke.Color = Color3.fromRGB(170, 0, 255); WStroke.Thickness = 1.5
 local WText = Instance.new("TextLabel", WFrame); WText.Size = UDim2.new(1,0,1,0); WText.BackgroundTransparency = 1; WText.TextColor3 = Color3.new(1,1,1); WText.Font = Enum.Font.GothamBold; WText.TextSize = 14; WText.RichText = true
-RunService.RenderStepped:Connect(function(dt) WText.Text = "Finest Hub | Char Edition | FPS: " .. math.floor(1/dt) .. " | <font color='#00FF00'>[ Anti AFK: On ]</font>" end)
+
+-- smooth FPS counter + dynamic color
+local displayFps = 60
+RunService.RenderStepped:Connect(function(dt)
+    local realFps = 1 / dt
+    -- lerp display value toward real fps for smooth rolling number
+    displayFps = displayFps + (realFps - displayFps) * 0.1
+    local shown = math.floor(displayFps)
+    -- pick color based on fps range
+    local fpsColor
+    if shown >= 60 then
+        fpsColor = "#00FF44"          -- green
+    elseif shown >= 45 then
+        fpsColor = "#AAFF00"          -- yellow-green
+    elseif shown >= 30 then
+        fpsColor = "#FFCC00"          -- yellow
+    elseif shown >= 15 then
+        fpsColor = "#FF6600"          -- orange
+    else
+        fpsColor = "#FF2222"          -- red
+    end
+    WText.Text = "Finest Hub | Char Edition | FPS: <font color='" .. fpsColor .. "'><b>" .. shown .. "</b></font> | <font color='#00FF44'>[ Anti AFK: On ]</font>"
+end)
 
 local Main = Instance.new("Frame", gui)
-Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,-1,-150); Main.BackgroundColor3 = Color3.fromRGB(35,0,60); Main.BackgroundTransparency = 0.2; Main.Active = true; Main.Draggable = true
+Main.Size = UDim2.new(0,550,0,300); Main.Position = UDim2.new(0.5,-275,-1,-150); Main.BackgroundColor3 = Color3.fromRGB(22,0,42); Main.BackgroundTransparency = 0.08; Main.Active = true; Main.Draggable = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
-local Glow = Instance.new("UIStroke", Main); Glow.Color = Color3.fromRGB(170,0,255); Glow.Thickness = 3.5; Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- subtle diagonal gradient overlay
+local glassTint = Instance.new("Frame", Main)
+glassTint.Size = UDim2.new(1,0,1,0); glassTint.BackgroundColor3 = Color3.fromRGB(80,10,130)
+glassTint.BackgroundTransparency = 0.75; glassTint.BorderSizePixel = 0; glassTint.ZIndex = 1
+Instance.new("UICorner", glassTint).CornerRadius = UDim.new(0,18)
+local tintGrad = Instance.new("UIGradient", glassTint)
+tintGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(160,60,255)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(60,0,110)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,0,20))})
+tintGrad.Rotation = 135
+
+-- very subtle top-edge sheen line
+local glassSheen = Instance.new("Frame", Main)
+glassSheen.Size = UDim2.new(0.65,0,0,1); glassSheen.Position = UDim2.new(0.175,0,0,1)
+glassSheen.BackgroundColor3 = Color3.fromRGB(210,170,255); glassSheen.BackgroundTransparency = 0.5
+glassSheen.BorderSizePixel = 0; glassSheen.ZIndex = 3
+Instance.new("UICorner", glassSheen).CornerRadius = UDim.new(1,0)
+local sheenGrad = Instance.new("UIGradient", glassSheen)
+sheenGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(0,0,0)),ColorSequenceKeypoint.new(0.3,Color3.new(1,1,1)),ColorSequenceKeypoint.new(0.7,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))})
+
+local Glow = Instance.new("UIStroke", Main); Glow.Color = Color3.fromRGB(170,0,255); Glow.Thickness = 2; Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; Glow.Transparency = 0.3
 task.delay(0.05, function()
     TweenService:Create(Main, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5,-275,0.5,-150)}):Play()
 end)
-glowTween = TweenService:Create(Glow, TweenInfo.new(2.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Thickness=3.8, Color=Color3.fromRGB(195,65,255)})
+glowTween = TweenService:Create(Glow, TweenInfo.new(2.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Thickness=2.5, Color=Color3.fromRGB(195,65,255), Transparency=0})
 glowTween:Play()
 
 local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1,0,0,45); Title.BackgroundTransparency = 1; Title.Text = "Finest Hub"; Title.Font = Enum.Font.GothamBold; Title.TextSize = 24; Title.TextColor3 = Color3.fromRGB(220,180,255); Title.RichText = true
@@ -348,6 +413,27 @@ local MiscPage,    MiscBtn,     MiscStroke    = createTab("Misc",     185)
 local SettingsPage, SetTabBtn,  SetStroke     = createTab("Settings", 215)
 local FlyPage = MovePage
 local GhostPage = MiscPage
+
+-- Tab group separators: thin glowing lines between logical groups
+-- Group 1: Movement, FPS, TP  |  Group 2: Players, Troll, Visuals  |  Group 3: Misc, Settings
+local function addSeparator(y)
+    local sep = Instance.new("Frame", Sidebar)
+    sep.Size = UDim2.new(1, -20, 0, 1)
+    sep.Position = UDim2.new(0, 10, 0, y)
+    sep.BackgroundColor3 = Color3.fromRGB(130, 0, 200)
+    sep.BackgroundTransparency = 0.6
+    sep.BorderSizePixel = 0
+    -- subtle gradient fade on edges
+    local grad = Instance.new("UIGradient", sep)
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.new(0,0,0)),
+        ColorSequenceKeypoint.new(0.2, Color3.new(1,1,1)),
+        ColorSequenceKeypoint.new(0.8, Color3.new(1,1,1)),
+        ColorSequenceKeypoint.new(1, Color3.new(0,0,0)),
+    })
+end
+addSeparator(93)   -- between TP and Players
+addSeparator(183)  -- between Visuals and Misc
 
 currentPage = MovePage
 MovePage.Visible = true
@@ -753,7 +839,9 @@ end)
 
 connections.inputBegan=UIS.InputBegan:Connect(function(input,processed)
     if processed then return end; if listeningFor then return end
-    if input.KeyCode==keybinds["Menu"] then menuSound(); Main.Visible=not Main.Visible; WFrame.Visible=Main.Visible; FooterGui.Enabled=Main.Visible end
+    if input.KeyCode==keybinds["Menu"] then
+        menuSound(); Main.Visible=not Main.Visible; WFrame.Visible=Main.Visible; FooterGui.Enabled=Main.Visible
+    end
     if input.KeyCode==keybinds["Trigger"] then triggerbotEnabled=not triggerbotEnabled; TriggerBtn.Text=triggerbotEnabled and "Triggerbot: ON" or "Triggerbot: OFF"; TriggerBtn.BackgroundColor3=triggerbotEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["🎯 Trigger"]=triggerbotEnabled; updateFooter(); click(); notify("Triggerbot: "..(triggerbotEnabled and "ON" or "OFF"),triggerbotEnabled) end
     if input.KeyCode==keybinds["Fly"] then
         flying=not flying; FlyBtn.Text=flying and "Toggle Fly: ON" or "Toggle Fly: OFF"; FlyBtn.BackgroundColor3=flying and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["🕊 Fly"]=flying; updateFooter()
