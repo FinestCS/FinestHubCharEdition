@@ -743,6 +743,7 @@ task.spawn(function()
 end)
 
 --// [VISUALS]
+VisualScroll=Instance.new("ScrollingFrame",VisualPage); VisualScroll.Size=UDim2.new(1,0,1,0); VisualScroll.BackgroundTransparency=1; VisualScroll.ScrollBarThickness=3; VisualScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); VisualScroll.CanvasSize=UDim2.new(0,0,0,310)
 local function createESP(p)
     if p==player then return end
     task.spawn(function()
@@ -772,11 +773,11 @@ task.spawn(function()
 end)
 local function removeESP() for _,v in pairs(Players:GetPlayers()) do if v.Character then if v.Character:FindFirstChild("FinestESP") then v.Character.FinestESP:Destroy() end; if v.Character:FindFirstChild("FinestName") then v.Character.FinestName:Destroy() end end end end
 
-local EspBtn=addBtn(VisualPage,"ESP: OFF",0,"[E]")
+local EspBtn=addBtn(VisualScroll,"ESP: OFF",0,"[E]")
 local espSubData={{label="❤ Health",x=0},{label="💀 Skeleton",x=63},{label="🌑 Night",x=126}}
 local espSubBtns={}
 for _,d in ipairs(espSubData) do
-    local sb=Instance.new("TextButton",VisualPage); sb.Size=UDim2.new(0,58,0,22); sb.Position=UDim2.new(0,d.x,0,50); sb.Text=d.label; sb.BackgroundColor3=Color3.fromRGB(55,0,90); sb.TextColor3=Color3.fromRGB(180,130,255); sb.Font=Enum.Font.GothamBold; sb.TextSize=10; sb.AutoButtonColor=false
+    local sb=Instance.new("TextButton",VisualScroll); sb.Size=UDim2.new(0,58,0,22); sb.Position=UDim2.new(0,d.x,0,50); sb.Text=d.label; sb.BackgroundColor3=Color3.fromRGB(55,0,90); sb.TextColor3=Color3.fromRGB(180,130,255); sb.Font=Enum.Font.GothamBold; sb.TextSize=10; sb.AutoButtonColor=false
     Instance.new("UICorner",sb).CornerRadius=UDim.new(0,6); local ss=Instance.new("UIStroke",sb); ss.Color=Color3.fromRGB(110,0,180); ss.Thickness=1; table.insert(espSubBtns,sb)
 end
 local function setSubBtn(btn,on) TweenService:Create(btn,TweenInfo.new(0.15),{BackgroundColor3=on and Color3.fromRGB(0,160,80) or Color3.fromRGB(55,0,90),TextColor3=on and Color3.fromRGB(200,255,220) or Color3.fromRGB(180,130,255)}):Play() end
@@ -785,7 +786,7 @@ local espColorData={{Color3.fromRGB(170,0,255)},{Color3.fromRGB(255,30,30)},{Col
 local espColorBtns={}
 local function updateColorBtns(activeIndex) for i,v in ipairs(espColorBtns) do v.btn.Text=i==activeIndex and "●" or "○"; v.btn.TextColor3=i==activeIndex and Color3.new(1,1,1) or Color3.fromRGB(180,180,180); v.btn.TextSize=i==activeIndex and 16 or 13 end end
 for i,cd in ipairs(espColorData) do
-    local cb=Instance.new("TextButton",VisualPage); cb.Size=UDim2.new(0,34,0,22); cb.Position=UDim2.new(0,(i-1)*37,0,78); cb.Text="○"; cb.BackgroundColor3=cd[1]; cb.TextColor3=Color3.fromRGB(180,180,180); cb.Font=Enum.Font.GothamBold; cb.TextSize=13; cb.AutoButtonColor=false
+    local cb=Instance.new("TextButton",VisualScroll); cb.Size=UDim2.new(0,34,0,22); cb.Position=UDim2.new(0,(i-1)*37,0,78); cb.Text="○"; cb.BackgroundColor3=cd[1]; cb.TextColor3=Color3.fromRGB(180,180,180); cb.Font=Enum.Font.GothamBold; cb.TextSize=13; cb.AutoButtonColor=false
     Instance.new("UICorner",cb).CornerRadius=UDim.new(0,6); table.insert(espColorBtns,{btn=cb,color=cd[1]})
     local idx=i; cb.MouseButton1Click:Connect(function() click(); espColor=cd[1]; updateColorBtns(idx); for _,p in pairs(Players:GetPlayers()) do if p.Character then local h=p.Character:FindFirstChild("FinestESP"); if h then h.FillColor=espColor end end end end)
 end
@@ -1011,19 +1012,26 @@ Instance.new("UIStroke",tooltipFrame).Color=Color3.fromRGB(120,0,200)
 tooltipLbl=Instance.new("TextLabel",tooltipFrame); tooltipLbl.Size=UDim2.new(1,-8,1,0); tooltipLbl.Position=UDim2.new(0,4,0,0); tooltipLbl.BackgroundTransparency=1; tooltipLbl.Font=Enum.Font.Gotham; tooltipLbl.TextSize=11; tooltipLbl.TextColor3=Color3.fromRGB(210,180,255); tooltipLbl.TextXAlignment=Enum.TextXAlignment.Left; tooltipLbl.ZIndex=21
 
 --// [LOOT ESP - Visuals Tab]
-local LootEspBtn = Instance.new("TextButton", VisualPage)
+local LootEspBtn = Instance.new("TextButton", VisualScroll)
 LootEspBtn.Size = UDim2.new(0,180,0,40); LootEspBtn.Position = UDim2.new(0,0,0,126)
 LootEspBtn.Text = "Loot ESP: OFF"; LootEspBtn.BackgroundColor3 = Color3.fromRGB(120,0,200)
 LootEspBtn.TextColor3 = Color3.new(1,1,1); LootEspBtn.Font = Enum.Font.GothamBold; LootEspBtn.TextSize = 16
 Instance.new("UICorner", LootEspBtn).CornerRadius = UDim.new(0,10)
 
-local lootRangeLabel = Instance.new("TextLabel", VisualPage)
+local lootRangeLabel = Instance.new("TextLabel", VisualScroll)
 lootRangeLabel.Size = UDim2.new(0,80,0,14); lootRangeLabel.Position = UDim2.new(0,0,0,172)
 lootRangeLabel.BackgroundTransparency = 1; lootRangeLabel.Text = "Range (studs):"
 lootRangeLabel.Font = Enum.Font.Gotham; lootRangeLabel.TextSize = 11
 lootRangeLabel.TextColor3 = Color3.fromRGB(200,170,255); lootRangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+visualSep=Instance.new("Frame",VisualScroll); visualSep.Size=UDim2.new(1,-10,0,1); visualSep.Position=UDim2.new(0,5,0,207); visualSep.BackgroundColor3=Color3.fromRGB(130,0,200); visualSep.BackgroundTransparency=0.4; visualSep.BorderSizePixel=0
+workshopEspBtn=Instance.new("TextButton",VisualScroll); workshopEspBtn.Size=UDim2.new(0,180,0,40); workshopEspBtn.Position=UDim2.new(0,0,0,216); workshopEspBtn.Text="Workshop ESP: OFF"; workshopEspBtn.BackgroundColor3=Color3.fromRGB(120,0,200); workshopEspBtn.TextColor3=Color3.new(1,1,1); workshopEspBtn.Font=Enum.Font.GothamBold; workshopEspBtn.TextSize=15
+Instance.new("UICorner",workshopEspBtn).CornerRadius=UDim.new(0,10)
+workshopRangeBox=Instance.new("TextBox",VisualScroll); workshopRangeBox.Size=UDim2.new(0,85,0,28); workshopRangeBox.Position=UDim2.new(0,0,0,262); workshopRangeBox.Text="30"; workshopRangeBox.PlaceholderText="Range"; workshopRangeBox.BackgroundColor3=Color3.fromRGB(60,0,100); workshopRangeBox.TextColor3=Color3.new(1,1,1); workshopRangeBox.Font=Enum.Font.GothamBold; workshopRangeBox.TextSize=14
+Instance.new("UICorner",workshopRangeBox).CornerRadius=UDim.new(0,8)
+workshopRangeLbl=Instance.new("TextLabel",VisualScroll); workshopRangeLbl.Size=UDim2.new(0,90,0,14); workshopRangeLbl.Position=UDim2.new(0,90,0,266); workshopRangeLbl.BackgroundTransparency=1; workshopRangeLbl.Text="Radius (studs)"; workshopRangeLbl.Font=Enum.Font.Gotham; workshopRangeLbl.TextSize=11; workshopRangeLbl.TextColor3=Color3.fromRGB(150,100,200); workshopRangeLbl.TextXAlignment=Enum.TextXAlignment.Left
 
-local lootRangeBox = Instance.new("TextBox", VisualPage)
+
+local lootRangeBox = Instance.new("TextBox", VisualScroll)
 lootRangeBox.Size = UDim2.new(0,90,0,28); lootRangeBox.Position = UDim2.new(0,85,0,168)
 lootRangeBox.Text = "200"; lootRangeBox.PlaceholderText = "200"
 lootRangeBox.BackgroundColor3 = Color3.fromRGB(60,0,100); lootRangeBox.TextColor3 = Color3.new(1,1,1)
@@ -1285,4 +1293,63 @@ UIS.InputBegan:Connect(function(input, processed)
     keyPickBtn.Text = tostring(input.KeyCode):gsub("Enum.KeyCode.","")
     keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); keyPickHint.Text="click to rebind"
     keyPickListening = false
+end)
+
+
+--// [WORKSHOP ESP LOGIC]
+workshopEspEnabled = false
+workshopTracked = {}
+workshopEspBtn.MouseButton1Click:Connect(function()
+    click()
+    workshopEspEnabled = not workshopEspEnabled
+    workshopEspBtn.Text = workshopEspEnabled and "Workshop ESP: ON" or "Workshop ESP: OFF"
+    workshopEspBtn.BackgroundColor3 = workshopEspEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["🔧 Workshop"] = workshopEspEnabled; updateFooter()
+    if not workshopEspEnabled then
+        for part,_ in pairs(workshopTracked) do
+            if part and part:FindFirstChild("WorkshopESP") then part.WorkshopESP:Destroy() end
+        end
+        workshopTracked = {}
+    end
+    notify("Workshop ESP: " .. (workshopEspEnabled and "ON" or "OFF"), workshopEspEnabled)
+end)
+task.spawn(function()
+    while not closed do
+        task.wait(0.2)
+        if not workshopEspEnabled then continue end
+        wsHrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not wsHrp then continue end
+        wsRange = tonumber(workshopRangeBox.Text) or 30
+        -- remove out of range labels
+        for part,_ in pairs(workshopTracked) do
+            if not part or not part.Parent then workshopTracked[part]=nil; continue end
+            wsDist = (part.Position - wsHrp.Position).Magnitude
+            if wsDist > wsRange then
+                if part:FindFirstChild("WorkshopESP") then part.WorkshopESP:Destroy() end
+                workshopTracked[part] = nil
+            else
+                -- update distance text
+                if part:FindFirstChild("WorkshopESP") and part.WorkshopESP:FindFirstChild("Lbl") then
+                    part.WorkshopESP.Lbl.Text = part.Name .. "\n[" .. math.floor(wsDist) .. " studs]"
+                end
+            end
+        end
+        -- scan for new parts in range
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:FindFirstChild("WorkshopESP") and not workshopTracked[obj] then
+                wsDist2 = (obj.Position - wsHrp.Position).Magnitude
+                if wsDist2 <= wsRange then
+                    workshopTracked[obj] = true
+                    wsBb = Instance.new("BillboardGui", obj); wsBb.Name = "WorkshopESP"; wsBb.AlwaysOnTop = true
+                    wsBb.Size = UDim2.new(0,140,0,36); wsBb.StudsOffset = Vector3.new(0,2,0)
+                    wsLbl = Instance.new("TextLabel", wsBb); wsLbl.Name = "Lbl"
+                    wsLbl.Size = UDim2.new(1,0,1,0); wsLbl.BackgroundTransparency = 0.35
+                    wsLbl.BackgroundColor3 = Color3.fromRGB(0,15,30); wsLbl.TextColor3 = Color3.fromRGB(100,220,255)
+                    wsLbl.Font = Enum.Font.GothamBold; wsLbl.TextSize = 11; wsLbl.TextWrapped = true
+                    wsLbl.Text = obj.Name .. "\n[" .. math.floor(wsDist2) .. " studs]"
+                    Instance.new("UICorner", wsLbl).CornerRadius = UDim.new(0,6)
+                end
+            end
+        end
+    end
 end)
