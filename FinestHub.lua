@@ -288,34 +288,29 @@ task.spawn(function()
         loadSteps = {
             {text="Loading Finest Kisses...",  pct=0.25, dur=0.6},
             {text="Loading Finest Hugs...",    pct=0.55, dur=0.6},
-            {text="Injecting love...",          pct=0.82, dur=0.5},
+            {text="Injecting love...",         pct=0.82, dur=0.5},
             {text="Done!",                      pct=1.0,  dur=0.3},
         }
         for si = 1, #loadSteps do
-            -- play tick sound
+            -- tick sound
             loadSnd = Instance.new("Sound", introBg); loadSnd.SoundId = "rbxassetid://6895079853"; loadSnd.Volume = 0.4; loadSnd:Play(); game.Debris:AddItem(loadSnd, 1)
-            -- typewriter effect
+            -- typewriter
             loadFull = loadSteps[si].text
             for ci = 1, #loadFull do
                 loadLbl.Text = loadFull:sub(1, ci)
                 task.wait(0.03)
             end
             TweenService:Create(loadFill, TweenInfo.new(loadSteps[si].dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(loadSteps[si].pct, 0, 1, 0)}):Play()
-            -- confetti burst on Done!
+            -- confetti on Done!
             if si == #loadSteps then
                 for ci2 = 1, 40 do
-                    confPart = Instance.new("Frame", introBg)
-                    confPart.BorderSizePixel = 0; confPart.ZIndex = 14
+                    confPart = Instance.new("Frame", introBg); confPart.BorderSizePixel = 0; confPart.ZIndex = 14
                     confSz = math.random(4,9); confPart.Size = UDim2.new(0,confSz,0,confSz)
                     confPart.Position = UDim2.new(0.5, math.random(-20,20), 0.82, 0)
-                    confPart.BackgroundColor3 = ({Color3.fromRGB(255,215,0), Color3.fromRGB(180,0,255), Color3.fromRGB(255,255,255), Color3.fromRGB(255,140,0)})[math.random(1,4)]
+                    confPart.BackgroundColor3 = ({Color3.fromRGB(255,215,0),Color3.fromRGB(180,0,255),Color3.fromRGB(255,255,255),Color3.fromRGB(255,140,0)})[math.random(1,4)]
                     Instance.new("UICorner", confPart).CornerRadius = UDim.new(0,2)
                     confDur = math.random(8,16)/10
-                    TweenService:Create(confPart, TweenInfo.new(confDur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        Position = UDim2.new(math.random(0,100)/100, 0, math.random(-10,90)/100, 0),
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(0,1,0,1)
-                    }):Play()
+                    TweenService:Create(confPart, TweenInfo.new(confDur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position=UDim2.new(math.random(0,100)/100,0,math.random(-10,90)/100,0), BackgroundTransparency=1, Size=UDim2.new(0,1,0,1)}):Play()
                     game.Debris:AddItem(confPart, confDur+0.1)
                     task.wait(0.02)
                 end
@@ -1185,3 +1180,55 @@ for _,obj in pairs(Main:GetDescendants()) do
         end
     end
 end
+
+--// [DEATH SCREEN]
+deathMessages = {
+    "Finest is healing you back up with love...",
+    "Don't worry, Finest got you some kisses...",
+    "Taking a nap? Finest is tucking you in...",
+    "Finest is sending you good vibes right now...",
+    "Even legends fall. Finest believes in you...",
+    "Respawning with extra Finest energy...",
+    "Finest is stitching you back together...",
+    "Loading more love... please wait...",
+    "You dropped this ❤️ Finest picked it up for you",
+    "Finest says: get up, you got this.",
+}
+deathGui = Instance.new("ScreenGui", game.CoreGui)
+deathGui.Name = "FinestDeath"; deathGui.ResetOnSpawn = false; deathGui.IgnoreGuiInset = true; deathGui.Enabled = false
+deathBg = Instance.new("Frame", deathGui); deathBg.Size = UDim2.new(1,0,1,0); deathBg.BackgroundColor3 = Color3.fromRGB(8,0,15); deathBg.BackgroundTransparency = 1; deathBg.BorderSizePixel = 0
+deathTitle = Instance.new("TextLabel", deathBg); deathTitle.Size = UDim2.new(1,0,0,60); deathTitle.AnchorPoint = Vector2.new(0.5,0.5); deathTitle.Position = UDim2.new(0.5,0,0.42,0); deathTitle.BackgroundTransparency = 1; deathTitle.Font = Enum.Font.GothamBold; deathTitle.TextSize = 42; deathTitle.TextColor3 = Color3.fromRGB(255,80,80); deathTitle.Text = "❤️ You Died ❤️"; deathTitle.TextTransparency = 1; deathTitle.ZIndex = 12
+deathSub = Instance.new("TextLabel", deathBg); deathSub.Size = UDim2.new(0.8,0,0,40); deathSub.AnchorPoint = Vector2.new(0.5,0.5); deathSub.Position = UDim2.new(0.5,0,0.54,0); deathSub.BackgroundTransparency = 1; deathSub.Font = Enum.Font.Gotham; deathSub.TextSize = 18; deathSub.TextColor3 = Color3.fromRGB(200,150,255); deathSub.TextTransparency = 1; deathSub.ZIndex = 12; deathSub.TextWrapped = true
+deathFinest = Instance.new("TextLabel", deathBg); deathFinest.Size = UDim2.new(1,0,0,24); deathFinest.AnchorPoint = Vector2.new(0.5,0.5); deathFinest.Position = UDim2.new(0.5,0,0.64,0); deathFinest.BackgroundTransparency = 1; deathFinest.Font = Enum.Font.GothamBold; deathFinest.TextSize = 13; deathFinest.TextColor3 = Color3.fromRGB(255,215,0); deathFinest.TextTransparency = 1; deathFinest.Text = "~ Finest Hub | Char Edition ~"; deathFinest.ZIndex = 12
+
+function showDeathScreen()
+    deathGui.Enabled = true
+    deathSub.Text = deathMessages[math.random(1,#deathMessages)]
+    TweenService:Create(deathBg, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.15}):Play()
+    TweenService:Create(deathTitle, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+    TweenService:Create(deathSub, TweenInfo.new(0.6), {TextTransparency = 0}):Play()
+    TweenService:Create(deathFinest, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+    pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false) end)
+end
+function hideDeathScreen()
+    TweenService:Create(deathBg, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(deathTitle, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+    TweenService:Create(deathSub, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+    TweenService:Create(deathFinest, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+    task.wait(0.5)
+    deathGui.Enabled = false
+    pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true) end)
+end
+function setupDeathWatch(char)
+    humDeath = char:WaitForChild("Humanoid", 5)
+    if not humDeath then return end
+    humDeath.Died:Connect(function()
+        if closed then return end
+        showDeathScreen()
+    end)
+end
+if player.Character then setupDeathWatch(player.Character) end
+player.CharacterAdded:Connect(function(char)
+    hideDeathScreen()
+    setupDeathWatch(char)
+end)
