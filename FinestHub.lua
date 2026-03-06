@@ -541,8 +541,9 @@ local function addBtn(parent, text, y, keybind)
 end
 
 --// [MISC MODULE]
-local healthBox=addBox(MiscPage,"Set Health",0); local maxHealthBox=addBox(MiscPage,"Max HP",0); maxHealthBox.Position=UDim2.new(0,190,0,0); maxHealthBox.Size=UDim2.new(0,95,0,45)
-local setHealthBtn=addBtn(MiscPage,"Set Health",55)
+MiscScroll=Instance.new("ScrollingFrame",MiscPage); MiscScroll.Size=UDim2.new(1,0,1,0); MiscScroll.BackgroundTransparency=1; MiscScroll.ScrollBarThickness=3; MiscScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); MiscScroll.CanvasSize=UDim2.new(0,0,0,290)
+local healthBox=addBox(MiscScroll,"Set Health",0); local maxHealthBox=addBox(MiscScroll,"Max HP",0); maxHealthBox.Position=UDim2.new(0,190,0,0); maxHealthBox.Size=UDim2.new(0,95,0,45)
+local setHealthBtn=addBtn(MiscScroll,"Set Health",55)
 setHealthBtn.MouseButton1Click:Connect(function()
     click(); local hum=player.Character and player.Character:FindFirstChildOfClass("Humanoid")
     if hum then
@@ -554,8 +555,13 @@ setHealthBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-miscSep=Instance.new("Frame",MiscPage); miscSep.Size=UDim2.new(1,-10,0,1); miscSep.Position=UDim2.new(0,5,0,107); miscSep.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep.BackgroundTransparency=0.4; miscSep.BorderSizePixel=0
-local ghostBtn=addBtn(MiscPage,"Ghost: OFF",110,"[G]")
+miscSep=Instance.new("Frame",MiscScroll); miscSep.Size=UDim2.new(1,-10,0,1); miscSep.Position=UDim2.new(0,5,0,107); miscSep.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep.BackgroundTransparency=0.4; miscSep.BorderSizePixel=0
+local ghostBtn=addBtn(MiscScroll,"Ghost: OFF",110,"[G]")
+miscSep2=Instance.new("Frame",MiscScroll); miscSep2.Size=UDim2.new(1,-10,0,1); miscSep2.Position=UDim2.new(0,5,0,162); miscSep2.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep2.BackgroundTransparency=0.4; miscSep2.BorderSizePixel=0
+keyLoopBox=addBox(MiscScroll,"Key (e.g. E)",165,"E"); keyLoopBox.Size=UDim2.new(0,85,0,40); keyLoopBox.Position=UDim2.new(0,190,0,165)
+keyLoopDelayBox=addBox(MiscScroll,"Delay",210,"0.1"); keyLoopDelayBox.Size=UDim2.new(0,85,0,40); keyLoopDelayBox.Position=UDim2.new(0,190,0,210)
+keyLoopBtn=addBtn(MiscScroll,"Key Loop: OFF",165)
+keyLoopLbl=Instance.new("TextLabel",MiscScroll); keyLoopLbl.Size=UDim2.new(0,180,0,14); keyLoopLbl.Position=UDim2.new(0,0,0,213); keyLoopLbl.BackgroundTransparency=1; keyLoopLbl.Text="Delay (s) between presses"; keyLoopLbl.Font=Enum.Font.Gotham; keyLoopLbl.TextSize=10; keyLoopLbl.TextColor3=Color3.fromRGB(150,100,200); keyLoopLbl.TextXAlignment=Enum.TextXAlignment.Left
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled=not ghostEnabled; ghostBtn.Text=ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3=ghostEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["👻 Ghost"]=ghostEnabled; updateFooter()
 end)
@@ -1231,4 +1237,33 @@ if player.Character then setupDeathWatch(player.Character) end
 player.CharacterAdded:Connect(function(char)
     hideDeathScreen()
     setupDeathWatch(char)
+end)
+
+--// [KEY LOOP LOGIC]
+keyLoopEnabled = false; keyLoopRunning = false
+keyLoopBtn.MouseButton1Click:Connect(function()
+    click()
+    keyLoopEnabled = not keyLoopEnabled
+    keyLoopBtn.Text = keyLoopEnabled and "Key Loop: ON" or "Key Loop: OFF"
+    keyLoopBtn.BackgroundColor3 = keyLoopEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["🔁 KeyLoop"] = keyLoopEnabled; updateFooter()
+    if keyLoopEnabled and not keyLoopRunning then
+        keyLoopRunning = true
+        task.spawn(function()
+            while keyLoopEnabled and not closed do
+                keyName = keyLoopBox.Text:upper()
+                keyDelay = tonumber(keyLoopDelayBox.Text) or 0.1
+                pcall(function()
+                    keyCode = Enum.KeyCode[keyName]
+                    VirtualInputManager = game:GetService("VirtualInputManager")
+                    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+                end)
+                task.wait(math.max(keyDelay, 0.05))
+            end
+            keyLoopRunning = false
+        end)
+    end
+    notify("Key Loop: " .. (keyLoopEnabled and "ON [🔁" .. keyLoopBox.Text:upper() .. "]" or "OFF"), keyLoopEnabled)
 end)
