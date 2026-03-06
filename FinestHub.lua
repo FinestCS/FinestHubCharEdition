@@ -952,6 +952,21 @@ table.insert(connections,settingsInputConn)
 
 Close.MouseButton1Click:Connect(function() menuSound(); onClose() end)
 
+-- Theme switcher
+themeHeader=Instance.new("TextLabel",settingsScroll); themeHeader.Size=UDim2.new(1,0,0,22); themeHeader.Position=UDim2.new(0,0,0,300); themeHeader.BackgroundTransparency=1; themeHeader.Text="🎨  Theme"; themeHeader.Font=Enum.Font.GothamBold; themeHeader.TextSize=13; themeHeader.TextColor3=Color3.fromRGB(200,150,255); themeHeader.TextXAlignment=Enum.TextXAlignment.Left
+settingsScroll.CanvasSize=UDim2.new(0,0,0,430)
+themeBtn1=Instance.new("TextButton",settingsScroll); themeBtn1.Size=UDim2.new(0,78,0,32); themeBtn1.Position=UDim2.new(0,0,0,326); themeBtn1.Text="Purple"; themeBtn1.Font=Enum.Font.GothamBold; themeBtn1.TextSize=12; themeBtn1.TextColor3=Color3.new(1,1,1); themeBtn1.BackgroundColor3=Color3.fromRGB(120,0,200); Instance.new("UICorner",themeBtn1).CornerRadius=UDim.new(0,8)
+themeBtn2=Instance.new("TextButton",settingsScroll); themeBtn2.Size=UDim2.new(0,78,0,32); themeBtn2.Position=UDim2.new(0,83,0,326); themeBtn2.Text="Red"; themeBtn2.Font=Enum.Font.GothamBold; themeBtn2.TextSize=12; themeBtn2.TextColor3=Color3.new(1,1,1); themeBtn2.BackgroundColor3=Color3.fromRGB(180,0,0); Instance.new("UICorner",themeBtn2).CornerRadius=UDim.new(0,8)
+themeBtn3=Instance.new("TextButton",settingsScroll); themeBtn3.Size=UDim2.new(0,78,0,32); themeBtn3.Position=UDim2.new(0,166,0,326); themeBtn3.Text="Blue"; themeBtn3.Font=Enum.Font.GothamBold; themeBtn3.TextSize=12; themeBtn3.TextColor3=Color3.new(1,1,1); themeBtn3.BackgroundColor3=Color3.fromRGB(0,80,200); Instance.new("UICorner",themeBtn3).CornerRadius=UDim.new(0,8)
+themeBtn4=Instance.new("TextButton",settingsScroll); themeBtn4.Size=UDim2.new(0,78,0,32); themeBtn4.Position=UDim2.new(0,0,0,364); themeBtn4.Text="Green"; themeBtn4.Font=Enum.Font.GothamBold; themeBtn4.TextSize=12; themeBtn4.TextColor3=Color3.new(1,1,1); themeBtn4.BackgroundColor3=Color3.fromRGB(0,140,60); Instance.new("UICorner",themeBtn4).CornerRadius=UDim.new(0,8)
+themeBtn5=Instance.new("TextButton",settingsScroll); themeBtn5.Size=UDim2.new(0,78,0,32); themeBtn5.Position=UDim2.new(0,83,0,364); themeBtn5.Text="Mono"; themeBtn5.Font=Enum.Font.GothamBold; themeBtn5.TextSize=12; themeBtn5.TextColor3=Color3.new(1,1,1); themeBtn5.BackgroundColor3=Color3.fromRGB(60,60,60); Instance.new("UICorner",themeBtn5).CornerRadius=UDim.new(0,8)
+
+-- Shared tooltip frame
+tooltipFrame=Instance.new("Frame",Main); tooltipFrame.Size=UDim2.new(0,200,0,28); tooltipFrame.BackgroundColor3=Color3.fromRGB(15,0,30); tooltipFrame.BackgroundTransparency=0.1; tooltipFrame.BorderSizePixel=0; tooltipFrame.ZIndex=20; tooltipFrame.Visible=false
+Instance.new("UICorner",tooltipFrame).CornerRadius=UDim.new(0,7)
+Instance.new("UIStroke",tooltipFrame).Color=Color3.fromRGB(120,0,200)
+tooltipLbl=Instance.new("TextLabel",tooltipFrame); tooltipLbl.Size=UDim2.new(1,-8,1,0); tooltipLbl.Position=UDim2.new(0,4,0,0); tooltipLbl.BackgroundTransparency=1; tooltipLbl.Font=Enum.Font.Gotham; tooltipLbl.TextSize=11; tooltipLbl.TextColor3=Color3.fromRGB(210,180,255); tooltipLbl.TextXAlignment=Enum.TextXAlignment.Left; tooltipLbl.ZIndex=21
+
 --// [LOOT ESP - Visuals Tab]
 local LootEspBtn = Instance.new("TextButton", VisualPage)
 LootEspBtn.Size = UDim2.new(0,180,0,40); LootEspBtn.Position = UDim2.new(0,0,0,126)
@@ -974,10 +989,7 @@ Instance.new("UICorner", lootRangeBox).CornerRadius = UDim.new(0,8)
 
 local lootEspEnabled = false
 
-local lootKeywords={"loot","drop","pickup","item","chest","coin","gem","weapon","gun","ammo","crate","bag","supply","reward","cash","money","gold","key","orb","shard","mat","resource"}
-local function isLootName(n) for _,k in pairs(lootKeywords) do if n:find(k) then return true end end return false end
-lootTracked = {}
-function isLootObj(n) return n:find("loot") or n:find("drop") or n:find("pickup") or n:find("item") or n:find("chest") or n:find("coin") or n:find("gem") or n:find("weapon") or n:find("gun") or n:find("ammo") or n:find("crate") or n:find("bag") or n:find("supply") or n:find("reward") or n:find("cash") or n:find("money") or n:find("gold") or n:find("key") or n:find("orb") or n:find("shard") or n:find("mat") or n:find("resource") end
+
 local function clearLootLabels()
     for part,_ in pairs(lootTracked) do
         if part and part:FindFirstChild("LootESP") then part.LootESP:Destroy() end
@@ -1082,3 +1094,107 @@ lootTpBtn.MouseButton1Click:Connect(function()
     end
     if not lootTpEnabled then notify("Loot TP: OFF",false) end
 end)
+
+--// [THEME + TOOLTIP LOGIC]
+themes = {
+    purple  = {btn=Color3.fromRGB(120,0,200),  box=Color3.fromRGB(60,0,100),   glow=Color3.fromRGB(170,0,255),  bg=Color3.fromRGB(22,0,42),   sidebar=Color3.fromRGB(45,0,75),   stroke=Color3.fromRGB(120,0,200),  text=Color3.fromRGB(220,180,255)},
+    red     = {btn=Color3.fromRGB(180,0,0),    box=Color3.fromRGB(80,0,0),     glow=Color3.fromRGB(220,0,0),    bg=Color3.fromRGB(28,0,0),    sidebar=Color3.fromRGB(60,0,0),    stroke=Color3.fromRGB(180,0,0),    text=Color3.fromRGB(255,180,180)},
+    blue    = {btn=Color3.fromRGB(0,80,200),   box=Color3.fromRGB(0,30,100),   glow=Color3.fromRGB(0,120,255),  bg=Color3.fromRGB(0,8,28),    sidebar=Color3.fromRGB(0,20,60),   stroke=Color3.fromRGB(0,80,200),   text=Color3.fromRGB(160,210,255)},
+    green   = {btn=Color3.fromRGB(0,140,60),   box=Color3.fromRGB(0,60,20),    glow=Color3.fromRGB(0,200,80),   bg=Color3.fromRGB(0,18,6),    sidebar=Color3.fromRGB(0,45,15),   stroke=Color3.fromRGB(0,140,60),   text=Color3.fromRGB(180,255,200)},
+    mono    = {btn=Color3.fromRGB(60,60,60),   box=Color3.fromRGB(30,30,30),   glow=Color3.fromRGB(160,160,160),bg=Color3.fromRGB(10,10,10),  sidebar=Color3.fromRGB(30,30,30),  stroke=Color3.fromRGB(100,100,100),text=Color3.fromRGB(220,220,220)},
+}
+function applyTheme(t)
+    -- Main frame
+    Main.BackgroundColor3=t.bg
+    -- Glow border
+    glowTween:Cancel()
+    glowTween=TweenService:Create(Glow,TweenInfo.new(2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{Thickness=2.5,Color=t.glow,Transparency=0}); glowTween:Play()
+    -- Watermark
+    WStroke.Color=t.glow; WFrame.BackgroundColor3=t.bg
+    -- Footer
+    Footer.BackgroundColor3=t.bg
+    -- Sidebar
+    Sidebar.BackgroundColor3=t.sidebar
+    Sidebar.ScrollBarImageColor3=t.glow
+    -- Footer (separate ScreenGui - must update directly)
+    Footer.BackgroundColor3=t.bg
+    FooterStroke.Color=t.glow
+    -- Watermark frame
+    WFrame.BackgroundColor3=t.bg
+    -- Title text color
+    Title.TextColor3=t.text
+    -- Tooltip
+    tooltipFrame.BackgroundColor3=t.bg
+    -- All descendants of Main
+    for _,obj in pairs(Main:GetDescendants()) do
+        if obj:IsA("ScrollingFrame") then
+            obj.ScrollBarImageColor3=t.glow
+            if obj.BackgroundTransparency<1 then obj.BackgroundColor3=t.bg end
+        elseif obj:IsA("TextButton") then
+            local c=obj.BackgroundColor3
+            -- skip ON buttons (green) and close/special buttons (black/red)
+            if c~=Color3.fromRGB(0,200,100) and c~=Color3.fromRGB(200,0,0) and c~=Color3.fromRGB(0,0,0) then
+                -- tab buttons are slightly lighter
+                if obj.Size==UDim2.new(1,-10,0,28) then obj.BackgroundColor3=t.sidebar
+                else obj.BackgroundColor3=t.btn end
+            end
+        elseif obj:IsA("TextBox") then obj.BackgroundColor3=t.box
+        elseif obj:IsA("UIStroke") then obj.Color=t.stroke
+        elseif obj:IsA("Frame") and obj.BackgroundTransparency<0.9 and obj~=tooltipFrame then
+            obj.BackgroundColor3=t.bg
+        end
+    end
+    notify("Theme applied!",true)
+end
+themeBtn1.MouseButton1Click:Connect(function() click(); applyTheme(themes.purple) end)
+themeBtn2.MouseButton1Click:Connect(function() click(); applyTheme(themes.red) end)
+themeBtn3.MouseButton1Click:Connect(function() click(); applyTheme(themes.blue) end)
+themeBtn4.MouseButton1Click:Connect(function() click(); applyTheme(themes.green) end)
+themeBtn5.MouseButton1Click:Connect(function() click(); applyTheme(themes.mono) end)
+
+-- Tooltips: map button text keywords to descriptions
+tooltipMap = {
+    ["Fly"]="Hold to fly around freely",
+    ["Speed"]="Boost your walk speed",
+    ["Ghost"]="Pass through players",
+    ["Fling"]="Launch nearby players into the air",
+    ["Orbit"]="Circle around a target player",
+    ["Chat Spam"]="Repeatedly send a message in chat",
+    ["Follow"]="Teleport to follow a target player",
+    ["ESP"]="See players through walls",
+    ["Skeleton"]="Show player bone outlines",
+    ["Health Bar"]="Show player health above their head",
+    ["Night Mode"]="Brighten dark maps",
+    ["Loot ESP"]="Show nearby loot items in the world",
+    ["Triggerbot"]="Auto shoot when crosshair is on a player",
+    ["Aimbot"]="Auto aim at nearest player",
+    ["Crosshair"]="Show a custom crosshair on screen",
+    ["Inf Jump"]="Jump again while in the air",
+    ["Swim"]="Swim through the air like water",
+    ["Spectate"]="Watch another player in first person",
+    ["Freeze"]="Lock a player in place client side",
+    ["Save Position"]="Save your current location",
+    ["Teleport"]="Go back to your saved location",
+    ["Auto-Return"]="Auto teleport back after a delay",
+    ["Click TP"]="Ctrl+Click to teleport anywhere",
+    ["Loot TP"]="Auto teleport to matching loot objects",
+    ["Mimic"]="Copy a players movements with a delay",
+}
+function showTooltip(btn, text)
+    tooltipLbl.Text = text
+    tooltipFrame.Size = UDim2.new(0, math.max(160, #text*6+16), 0, 28)
+    tooltipFrame.Position = UDim2.new(0, btn.AbsolutePosition.X - Main.AbsolutePosition.X, 0, btn.AbsolutePosition.Y - Main.AbsolutePosition.Y - 32)
+    tooltipFrame.Visible = true
+end
+function hideTooltip() tooltipFrame.Visible = false end
+for _,obj in pairs(Main:GetDescendants()) do
+    if obj:IsA("TextButton") then
+        for keyword, desc in pairs(tooltipMap) do
+            if obj.Text:find(keyword) then
+                obj.MouseEnter:Connect(function() showTooltip(obj, desc) end)
+                obj.MouseLeave:Connect(hideTooltip)
+                break
+            end
+        end
+    end
+end
