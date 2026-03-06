@@ -288,13 +288,39 @@ task.spawn(function()
         loadSteps = {
             {text="Loading Finest Kisses...",  pct=0.25, dur=0.6},
             {text="Loading Finest Hugs...",    pct=0.55, dur=0.6},
-            {text="Injecting love...",         pct=0.82, dur=0.5},
+            {text="Injecting love...",          pct=0.82, dur=0.5},
             {text="Done!",                      pct=1.0,  dur=0.3},
         }
         for si = 1, #loadSteps do
-            loadLbl.Text = loadSteps[si].text
+            -- play tick sound
+            loadSnd = Instance.new("Sound", introBg); loadSnd.SoundId = "rbxassetid://6895079853"; loadSnd.Volume = 0.4; loadSnd:Play(); game.Debris:AddItem(loadSnd, 1)
+            -- typewriter effect
+            loadFull = loadSteps[si].text
+            for ci = 1, #loadFull do
+                loadLbl.Text = loadFull:sub(1, ci)
+                task.wait(0.03)
+            end
             TweenService:Create(loadFill, TweenInfo.new(loadSteps[si].dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(loadSteps[si].pct, 0, 1, 0)}):Play()
-            task.wait(loadSteps[si].dur + 0.15)
+            -- confetti burst on Done!
+            if si == #loadSteps then
+                for ci2 = 1, 40 do
+                    confPart = Instance.new("Frame", introBg)
+                    confPart.BorderSizePixel = 0; confPart.ZIndex = 14
+                    confSz = math.random(4,9); confPart.Size = UDim2.new(0,confSz,0,confSz)
+                    confPart.Position = UDim2.new(0.5, math.random(-20,20), 0.82, 0)
+                    confPart.BackgroundColor3 = ({Color3.fromRGB(255,215,0), Color3.fromRGB(180,0,255), Color3.fromRGB(255,255,255), Color3.fromRGB(255,140,0)})[math.random(1,4)]
+                    Instance.new("UICorner", confPart).CornerRadius = UDim.new(0,2)
+                    confDur = math.random(8,16)/10
+                    TweenService:Create(confPart, TweenInfo.new(confDur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(math.random(0,100)/100, 0, math.random(-10,90)/100, 0),
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(0,1,0,1)
+                    }):Play()
+                    game.Debris:AddItem(confPart, confDur+0.1)
+                    task.wait(0.02)
+                end
+            end
+            task.wait(loadSteps[si].dur + 0.1)
         end
     end)
     glitchPool = {"#","@","!","%","&","*","?","X","Z","$","~","^","/","\\","|","<",">"}
