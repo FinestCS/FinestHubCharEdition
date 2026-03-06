@@ -589,14 +589,18 @@ end)
 
 --// [TP MODULE]
 local savedPosition,autoReturn=nil,false; local clickTpEnabled=false
-local saveBtn=addBtn(TPPage,"Save Position",0); local tpBtn=addBtn(TPPage,"Teleport",55); local autoBtn=addBtn(TPPage,"Auto-Return: OFF",110); local autoTimeBox=addBox(TPPage,"Delay",110,"3.5")
+TPScroll=Instance.new("ScrollingFrame",TPPage); TPScroll.Size=UDim2.new(1,0,1,0); TPScroll.BackgroundTransparency=1; TPScroll.ScrollBarThickness=3; TPScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); TPScroll.CanvasSize=UDim2.new(0,0,0,370)
+local saveBtn=addBtn(TPScroll,"Save Position",0); local tpBtn=addBtn(TPScroll,"Teleport",55); local autoBtn=addBtn(TPScroll,"Auto-Return: OFF",110); local autoTimeBox=addBox(TPScroll,"Delay",110,"3.5")
 autoTimeBox.Position=UDim2.new(0,190,0,0); autoTimeBox.Size=UDim2.new(0,80,0,45)
-local clickTpBtn=addBtn(TPPage,"Click TP: OFF",165)
+local clickTpBtn=addBtn(TPScroll,"Click TP: OFF",165)
 saveBtn.MouseButton1Click:Connect(function() click(); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then savedPosition=player.Character.HumanoidRootPart.CFrame; saveBtn.BackgroundColor3=Color3.fromRGB(0,255,120); TweenService:Create(saveBtn,TweenInfo.new(0.5),{BackgroundColor3=Color3.fromRGB(120,0,200)}):Play() end end)
 tpBtn.MouseButton1Click:Connect(function() click(); if player.Character and savedPosition then player.Character.HumanoidRootPart.CFrame=savedPosition end end)
 autoBtn.MouseButton1Click:Connect(function() click(); autoReturn=not autoReturn; autoBtn.Text=autoReturn and "Auto-Return: ON" or "Auto-Return: OFF"; autoBtn.BackgroundColor3=autoReturn and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["📍 Auto-Return"]=autoReturn; updateFooter() end)
 clickTpBtn.MouseButton1Click:Connect(function() click(); clickTpEnabled=not clickTpEnabled; clickTpBtn.Text=clickTpEnabled and "Click TP: ON" or "Click TP: OFF"; clickTpBtn.BackgroundColor3=clickTpEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["📍 ClickTP"]=clickTpEnabled; updateFooter() end)
 mouse.Button1Down:Connect(function() if clickTpEnabled and UIS:IsKeyDown(Enum.KeyCode.LeftControl) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame=CFrame.new(mouse.Hit.p)+Vector3.new(0,3,0); playSound(12222242,0.4) end end)
+
+lootTpNameBox=addBox(TPScroll,"Loot name",220,""); lootTpNameBox.Size=UDim2.new(0,180,0,40)
+lootTpBtn=addBtn(TPScroll,"Loot TP: OFF",268)
 
 --// [PLAYERS TAB]
 local function stopSpectate()
@@ -970,59 +974,111 @@ Instance.new("UICorner", lootRangeBox).CornerRadius = UDim.new(0,8)
 
 local lootEspEnabled = false
 
+local lootKeywords={"loot","drop","pickup","item","chest","coin","gem","weapon","gun","ammo","crate","bag","supply","reward","cash","money","gold","key","orb","shard","mat","resource"}
+local function isLootName(n) for _,k in pairs(lootKeywords) do if n:find(k) then return true end end return false end
+lootTracked = {}
+function isLootObj(n) return n:find("loot") or n:find("drop") or n:find("pickup") or n:find("item") or n:find("chest") or n:find("coin") or n:find("gem") or n:find("weapon") or n:find("gun") or n:find("ammo") or n:find("crate") or n:find("bag") or n:find("supply") or n:find("reward") or n:find("cash") or n:find("money") or n:find("gold") or n:find("key") or n:find("orb") or n:find("shard") or n:find("mat") or n:find("resource") end
 local function clearLootLabels()
-    for _, obj in pairs(workspace:GetDescendants()) do
-        local bb = obj:FindFirstChild("LootESP")
-        if bb then bb:Destroy() end
+    for part,_ in pairs(lootTracked) do
+        if part and part:FindFirstChild("LootESP") then part.LootESP:Destroy() end
     end
+    lootTracked = {}
 end
-
-local function updateLootESP()
-    clearLootLabels()
+local function tryAddLoot(obj)
+    if not lootEspEnabled then return end
+    if not isLootObj(obj.Name:lower()) then return end
+    part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and obj.PrimaryPart or nil)
+    if not part or part:FindFirstChild("LootESP") then return end
+    local bb = Instance.new("BillboardGui", part); bb.Name = "LootESP"; bb.AlwaysOnTop = true
+    bb.Size = UDim2.new(0,120,0,28); bb.StudsOffset = Vector3.new(0,2,0)
+    local lbl = Instance.new("TextLabel", bb); lbl.Name = "Lbl"
+    lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 0.4
+    lbl.BackgroundColor3 = Color3.fromRGB(20,0,40); lbl.TextColor3 = Color3.fromRGB(255,210,60)
+    lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 12
+    Instance.new("UICorner", lbl).CornerRadius = UDim.new(0,6)
+    lootTracked[part] = obj
+end
+local function updateLootLabels()
     if not lootEspEnabled then return end
     local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     local maxDist = tonumber(lootRangeBox.Text) or 200
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if not obj:FindFirstChild("LootESP") then
-            local part = nil
-            if obj:IsA("BasePart") then part = obj
-            elseif obj:IsA("Model") then part = obj.PrimaryPart end
-            if part then
-                local dist = (part.Position - hrp.Position).Magnitude
-                if dist <= maxDist then
-                    local name = obj.Name:lower()
-                    if name:find("loot") or name:find("drop") or name:find("pickup") or name:find("item") or name:find("chest") or name:find("coin") or name:find("gem") or name:find("weapon") or name:find("gun") or name:find("ammo") or name:find("crate") or name:find("bag") or name:find("supply") or name:find("reward") or name:find("cash") or name:find("money") or name:find("gold") or name:find("key") or name:find("orb") or name:find("shard") or name:find("mat") or name:find("resource") then
-                        local bb = Instance.new("BillboardGui", part)
-                        bb.Name = "LootESP"; bb.AlwaysOnTop = true
-                        bb.Size = UDim2.new(0,120,0,28); bb.StudsOffset = Vector3.new(0,2,0)
-                        local lbl = Instance.new("TextLabel", bb)
-                        lbl.Size = UDim2.new(1,0,1,0); lbl.BackgroundTransparency = 0.4
-                        lbl.BackgroundColor3 = Color3.fromRGB(20,0,40)
-                        lbl.Text = obj.Name .. " [" .. math.floor(dist) .. "]"
-                        lbl.TextColor3 = Color3.fromRGB(255,210,60)
-                        lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 12
-                        Instance.new("UICorner", lbl).CornerRadius = UDim.new(0,6)
-                    end
+    for part, obj in pairs(lootTracked) do
+        if part and part.Parent then
+            local dist = (part.Position - hrp.Position).Magnitude
+            if dist <= maxDist then
+                if not part:FindFirstChild("LootESP") then tryAddLoot(obj) end
+                if part:FindFirstChild("LootESP") and part.LootESP:FindFirstChild("Lbl") then
+                    part.LootESP.Lbl.Text = obj.Name .. " [" .. math.floor(dist) .. "]"
                 end
+            else
+                if part:FindFirstChild("LootESP") then part.LootESP:Destroy() end
             end
-        end
+        else lootTracked[part] = nil end
     end
 end
-
 LootEspBtn.MouseButton1Click:Connect(function()
     click()
     lootEspEnabled = not lootEspEnabled
     LootEspBtn.Text = lootEspEnabled and "Loot ESP: ON" or "Loot ESP: OFF"
     LootEspBtn.BackgroundColor3 = lootEspEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
-    activeFeatures["Loot"] = lootEspEnabled; updateFooter()
-    if lootEspEnabled then updateLootESP() else clearLootLabels() end
+    activeFeatures["🔍 Loot"] = lootEspEnabled; updateFooter()
+    if lootEspEnabled then
+        lootTracked = {}
+        for _, obj in pairs(workspace:GetDescendants()) do tryAddLoot(obj) end
+    else clearLootLabels() end
     notify("Loot ESP: " .. (lootEspEnabled and "ON" or "OFF"), lootEspEnabled)
 end)
-
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("Model") then task.wait(0.1) end
+    tryAddLoot(obj)
+end)
+workspace.DescendantRemoving:Connect(function(obj)
+    part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and obj.PrimaryPart or nil)
+    if part then lootTracked[part] = nil end
+end)
 task.spawn(function()
-    while not closed do
-        task.wait(0.5)
-        if lootEspEnabled then updateLootESP() end
+    while not closed do task.wait(0.5)
+        if lootEspEnabled then updateLootLabels() end
     end
+end)
+
+
+--// [LOOT TP LOGIC]
+lootTpEnabled=false; lootTpRunning=false
+lootTpBtn.MouseButton1Click:Connect(function()
+    click()
+    lootTpEnabled=not lootTpEnabled
+    lootTpBtn.Text=lootTpEnabled and "Loot TP: ON" or "Loot TP: OFF"
+    lootTpBtn.BackgroundColor3=lootTpEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["📍 Loot TP"]=lootTpEnabled; updateFooter()
+    if lootTpEnabled and not lootTpRunning then
+        lootTpRunning=true
+        task.spawn(function()
+            while lootTpEnabled and not closed do
+                lootTpQuery=lootTpNameBox.Text:lower()
+                if lootTpQuery~="" and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    for _,obj in pairs(workspace:GetDescendants()) do
+                        if not lootTpEnabled then break end
+                        if obj:IsA("BasePart") or obj:IsA("Model") then
+                            lootTpName=obj.Name:lower()
+                            if lootTpName:find(lootTpQuery) then
+                                lootTpCF=nil
+                                if obj:IsA("BasePart") then lootTpCF=obj.CFrame
+                                elseif obj:IsA("Model") and obj.PrimaryPart then lootTpCF=obj.PrimaryPart.CFrame end
+                                if lootTpCF then
+                                    player.Character.HumanoidRootPart.CFrame=lootTpCF*CFrame.new(0,3,0)
+                                    notify("Loot TP → "..obj.Name,true)
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.1)
+            end
+            lootTpRunning=false
+        end)
+    end
+    if not lootTpEnabled then notify("Loot TP: OFF",false) end
 end)
