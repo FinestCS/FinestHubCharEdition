@@ -558,10 +558,10 @@ end)
 miscSep=Instance.new("Frame",MiscScroll); miscSep.Size=UDim2.new(1,-10,0,1); miscSep.Position=UDim2.new(0,5,0,107); miscSep.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep.BackgroundTransparency=0.4; miscSep.BorderSizePixel=0
 local ghostBtn=addBtn(MiscScroll,"Ghost: OFF",110,"[G]")
 miscSep2=Instance.new("Frame",MiscScroll); miscSep2.Size=UDim2.new(1,-10,0,1); miscSep2.Position=UDim2.new(0,5,0,162); miscSep2.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep2.BackgroundTransparency=0.4; miscSep2.BorderSizePixel=0
-keyLoopBox=addBox(MiscScroll,"Key (e.g. E)",165,"E"); keyLoopBox.Size=UDim2.new(0,85,0,40); keyLoopBox.Position=UDim2.new(0,190,0,165)
-keyLoopDelayBox=addBox(MiscScroll,"Delay",210,"0.1"); keyLoopDelayBox.Size=UDim2.new(0,85,0,40); keyLoopDelayBox.Position=UDim2.new(0,190,0,210)
 keyLoopBtn=addBtn(MiscScroll,"Key Loop: OFF",165)
-keyLoopLbl=Instance.new("TextLabel",MiscScroll); keyLoopLbl.Size=UDim2.new(0,180,0,14); keyLoopLbl.Position=UDim2.new(0,0,0,213); keyLoopLbl.BackgroundTransparency=1; keyLoopLbl.Text="Delay (s) between presses"; keyLoopLbl.Font=Enum.Font.Gotham; keyLoopLbl.TextSize=10; keyLoopLbl.TextColor3=Color3.fromRGB(150,100,200); keyLoopLbl.TextXAlignment=Enum.TextXAlignment.Left
+keyPickBtn=Instance.new("TextButton",MiscScroll); keyPickBtn.Size=UDim2.new(0,85,0,40); keyPickBtn.Position=UDim2.new(0,190,0,165); keyPickBtn.Text="E"; keyPickBtn.Font=Enum.Font.GothamBold; keyPickBtn.TextSize=13; keyPickBtn.TextColor3=Color3.fromRGB(220,180,255); keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); Instance.new("UICorner",keyPickBtn).CornerRadius=UDim.new(0,8); keyPickStroke=Instance.new("UIStroke",keyPickBtn); keyPickStroke.Color=Color3.fromRGB(120,0,200); keyPickStroke.Thickness=1
+keyLoopDelayBox=addBox(MiscScroll,"Delay(s)",215,"0.1"); keyLoopDelayBox.Size=UDim2.new(0,180,0,40)
+keyPickHint=Instance.new("TextLabel",MiscScroll); keyPickHint.Size=UDim2.new(0,85,0,14); keyPickHint.Position=UDim2.new(0,190,0,208); keyPickHint.BackgroundTransparency=1; keyPickHint.Text="click to rebind"; keyPickHint.Font=Enum.Font.Gotham; keyPickHint.TextSize=10; keyPickHint.TextColor3=Color3.fromRGB(120,80,160); keyPickHint.Visible=true
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled=not ghostEnabled; ghostBtn.Text=ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3=ghostEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["👻 Ghost"]=ghostEnabled; updateFooter()
 end)
@@ -1251,7 +1251,7 @@ keyLoopBtn.MouseButton1Click:Connect(function()
         keyLoopRunning = true
         task.spawn(function()
             while keyLoopEnabled and not closed do
-                keyName = keyLoopBox.Text:upper()
+                keyName = keyPickBtn.Text:upper()
                 keyDelay = tonumber(keyLoopDelayBox.Text) or 0.1
                 pcall(function()
                     keyCode = Enum.KeyCode[keyName]
@@ -1265,5 +1265,24 @@ keyLoopBtn.MouseButton1Click:Connect(function()
             keyLoopRunning = false
         end)
     end
-    notify("Key Loop: " .. (keyLoopEnabled and "ON [🔁" .. keyLoopBox.Text:upper() .. "]" or "OFF"), keyLoopEnabled)
+    notify("Key Loop: " .. (keyLoopEnabled and "ON [" .. keyPickBtn.Text:upper() .. "]" or "OFF"), keyLoopEnabled)
+end)
+keyPickListening = false
+keyPickBtn.MouseButton1Click:Connect(function()
+    click()
+    if keyPickListening then
+        keyPickListening = false; keyPickBtn.Text = keyPickBtn.Text == "[ press key ]" and "E" or keyPickBtn.Text; keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); keyPickHint.Text="click to rebind"
+    else
+        keyPickListening = true; keyPickBtn.Text = "[ press key ]"; keyPickBtn.BackgroundColor3=Color3.fromRGB(100,0,170); keyPickHint.Text="press any key..."
+    end
+end)
+UIS.InputBegan:Connect(function(input, processed)
+    if not keyPickListening then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+    if input.KeyCode == Enum.KeyCode.Escape then
+        keyPickListening = false; keyPickBtn.Text = "E"; keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); keyPickHint.Text="click to rebind"; return
+    end
+    keyPickBtn.Text = tostring(input.KeyCode):gsub("Enum.KeyCode.","")
+    keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); keyPickHint.Text="click to rebind"
+    keyPickListening = false
 end)
