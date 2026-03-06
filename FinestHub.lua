@@ -277,6 +277,26 @@ task.spawn(function()
             task.wait(1.2)
         end
     end)
+    -- Loading bar at bottom
+    loadBar = Instance.new("Frame", introBg); loadBar.Size = UDim2.new(0.7,0,0,4); loadBar.Position = UDim2.new(0.15,0,0.82,0); loadBar.BackgroundColor3 = Color3.fromRGB(30,0,50); loadBar.BorderSizePixel = 0; loadBar.ZIndex = 12
+    Instance.new("UICorner", loadBar).CornerRadius = UDim.new(1,0)
+    loadFill = Instance.new("Frame", loadBar); loadFill.Size = UDim2.new(0,0,1,0); loadFill.BackgroundColor3 = Color3.fromRGB(255,215,0); loadFill.BorderSizePixel = 0; loadFill.ZIndex = 13
+    Instance.new("UICorner", loadFill).CornerRadius = UDim.new(1,0)
+    loadLbl = Instance.new("TextLabel", introBg); loadLbl.Size = UDim2.new(1,0,0,20); loadLbl.Position = UDim2.new(0,0,0.86,0); loadLbl.BackgroundTransparency = 1; loadLbl.Font = Enum.Font.Gotham; loadLbl.TextSize = 13; loadLbl.TextColor3 = Color3.fromRGB(180,100,255); loadLbl.ZIndex = 12; loadLbl.Text = ""
+    -- Run loading steps concurrently
+    task.spawn(function()
+        loadSteps = {
+            {text="Loading Finest Kisses...",  pct=0.25, dur=0.6},
+            {text="Loading Finest Hugs...",    pct=0.55, dur=0.6},
+            {text="Injecting love...",         pct=0.82, dur=0.5},
+            {text="Done!",                      pct=1.0,  dur=0.3},
+        }
+        for si = 1, #loadSteps do
+            loadLbl.Text = loadSteps[si].text
+            TweenService:Create(loadFill, TweenInfo.new(loadSteps[si].dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(loadSteps[si].pct, 0, 1, 0)}):Play()
+            task.wait(loadSteps[si].dur + 0.15)
+        end
+    end)
     glitchPool = {"#","@","!","%","&","*","?","X","Z","$","~","^","/","\\","|","<",">"}
     glitchTarget = "Char Edition"
     glitchFn = function(resolve)
