@@ -1373,9 +1373,10 @@ function toggleAutoClick()
                 autoClickDelay = tonumber(autoClickDelayBox.Text) or 0.05
                 pcall(function()
                     VIM = game:GetService("VirtualInputManager")
-                    VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                    VIM:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 1)
                     task.wait(0.02)
-                    VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    VIM:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 1)
                 end)
                 task.wait(math.max(autoClickDelay, 0.01))
             end
