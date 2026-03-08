@@ -541,7 +541,7 @@ local function addBtn(parent, text, y, keybind)
 end
 
 --// [MISC MODULE]
-MiscScroll=Instance.new("ScrollingFrame",MiscPage); MiscScroll.Size=UDim2.new(1,0,1,0); MiscScroll.BackgroundTransparency=1; MiscScroll.ScrollBarThickness=3; MiscScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); MiscScroll.CanvasSize=UDim2.new(0,0,0,290)
+MiscScroll=Instance.new("ScrollingFrame",MiscPage); MiscScroll.Size=UDim2.new(1,0,1,0); MiscScroll.BackgroundTransparency=1; MiscScroll.ScrollBarThickness=3; MiscScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); MiscScroll.CanvasSize=UDim2.new(0,0,0,410)
 local healthBox=addBox(MiscScroll,"Set Health",0); local maxHealthBox=addBox(MiscScroll,"Max HP",0); maxHealthBox.Position=UDim2.new(0,190,0,0); maxHealthBox.Size=UDim2.new(0,95,0,45)
 local setHealthBtn=addBtn(MiscScroll,"Set Health",55)
 setHealthBtn.MouseButton1Click:Connect(function()
@@ -562,6 +562,10 @@ keyLoopBtn=addBtn(MiscScroll,"Key Loop: OFF",165)
 keyPickBtn=Instance.new("TextButton",MiscScroll); keyPickBtn.Size=UDim2.new(0,85,0,40); keyPickBtn.Position=UDim2.new(0,190,0,165); keyPickBtn.Text="E"; keyPickBtn.Font=Enum.Font.GothamBold; keyPickBtn.TextSize=13; keyPickBtn.TextColor3=Color3.fromRGB(220,180,255); keyPickBtn.BackgroundColor3=Color3.fromRGB(60,0,100); Instance.new("UICorner",keyPickBtn).CornerRadius=UDim.new(0,8); keyPickStroke=Instance.new("UIStroke",keyPickBtn); keyPickStroke.Color=Color3.fromRGB(120,0,200); keyPickStroke.Thickness=1
 keyLoopDelayBox=addBox(MiscScroll,"Delay(s)",215,"0.1"); keyLoopDelayBox.Size=UDim2.new(0,180,0,40)
 keyPickHint=Instance.new("TextLabel",MiscScroll); keyPickHint.Size=UDim2.new(0,85,0,14); keyPickHint.Position=UDim2.new(0,190,0,208); keyPickHint.BackgroundTransparency=1; keyPickHint.Text="click to rebind"; keyPickHint.Font=Enum.Font.Gotham; keyPickHint.TextSize=10; keyPickHint.TextColor3=Color3.fromRGB(120,80,160); keyPickHint.Visible=true
+miscSep3=Instance.new("Frame",MiscScroll); miscSep3.Size=UDim2.new(1,-10,0,1); miscSep3.Position=UDim2.new(0,5,0,292); miscSep3.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep3.BackgroundTransparency=0.4; miscSep3.BorderSizePixel=0
+autoClickBtn=addBtn(MiscScroll,"Auto Click: [']: OFF",300)
+autoClickDelayBox=addBox(MiscScroll,"CPS delay",300,"0.05"); autoClickDelayBox.Size=UDim2.new(0,85,0,40); autoClickDelayBox.Position=UDim2.new(0,190,0,300)
+autoClickLbl=Instance.new("TextLabel",MiscScroll); autoClickLbl.Size=UDim2.new(0,85,0,14); autoClickLbl.Position=UDim2.new(0,190,0,343); autoClickLbl.BackgroundTransparency=1; autoClickLbl.Text="delay in secs"; autoClickLbl.Font=Enum.Font.Gotham; autoClickLbl.TextSize=10; autoClickLbl.TextColor3=Color3.fromRGB(120,80,160); autoClickLbl.TextXAlignment=Enum.TextXAlignment.Left
 ghostBtn.MouseButton1Click:Connect(function()
     click(); ghostEnabled=not ghostEnabled; ghostBtn.Text=ghostEnabled and "Ghost: ON" or "Ghost: OFF"; ghostBtn.BackgroundColor3=ghostEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200); activeFeatures["👻 Ghost"]=ghostEnabled; updateFooter()
 end)
@@ -1352,4 +1356,36 @@ task.spawn(function()
             end
         end
     end
+end)
+
+
+--// [AUTO CLICKER LOGIC]
+autoClickEnabled = false; autoClickRunning = false
+function toggleAutoClick()
+    autoClickEnabled = not autoClickEnabled
+    autoClickBtn.Text = autoClickEnabled and "Auto Click: [']: ON" or "Auto Click: [']: OFF"
+    autoClickBtn.BackgroundColor3 = autoClickEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    activeFeatures["🖱️ AutoClick"] = autoClickEnabled; updateFooter()
+    if autoClickEnabled and not autoClickRunning then
+        autoClickRunning = true
+        task.spawn(function()
+            while autoClickEnabled and not closed do
+                autoClickDelay = tonumber(autoClickDelayBox.Text) or 0.05
+                pcall(function()
+                    VIM = game:GetService("VirtualInputManager")
+                    VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    task.wait(0.02)
+                    VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                end)
+                task.wait(math.max(autoClickDelay, 0.01))
+            end
+            autoClickRunning = false
+        end)
+    end
+    notify("Auto Click: " .. (autoClickEnabled and "ON" or "OFF"), autoClickEnabled)
+end
+autoClickBtn.MouseButton1Click:Connect(function() click(); toggleAutoClick() end)
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.Quote then toggleAutoClick() end
 end)
