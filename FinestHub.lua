@@ -96,6 +96,8 @@ local function onClose()
         if game.CoreGui:FindFirstChild("FinestFOVCircle") then game.CoreGui.FinestFOVCircle:Destroy() end
         if blGui then blGui.Enabled = false end
         if game.CoreGui:FindFirstChild("FinestBL") then game.CoreGui.FinestBL:Destroy() end
+        for part,_ in pairs(lootTracked) do pcall(function() if part and part:FindFirstChild("LootESP") then part.LootESP:Destroy() end end) end
+        lootTracked = {}
     end)
 end
 
