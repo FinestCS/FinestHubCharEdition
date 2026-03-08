@@ -94,6 +94,8 @@ local function onClose()
         if game.CoreGui:FindFirstChild("FinestCrosshair") then game.CoreGui.FinestCrosshair:Destroy() end
         if game.CoreGui:FindFirstChild("FinestParticles") then game.CoreGui.FinestParticles:Destroy() end
         if game.CoreGui:FindFirstChild("FinestFOVCircle") then game.CoreGui.FinestFOVCircle:Destroy() end
+        if blGui then blGui.Enabled = false end
+        if game.CoreGui:FindFirstChild("FinestBL") then game.CoreGui.FinestBL:Destroy() end
     end)
 end
 
@@ -541,7 +543,7 @@ local function addBtn(parent, text, y, keybind)
 end
 
 --// [MISC MODULE]
-MiscScroll=Instance.new("ScrollingFrame",MiscPage); MiscScroll.Size=UDim2.new(1,0,1,0); MiscScroll.BackgroundTransparency=1; MiscScroll.ScrollBarThickness=3; MiscScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); MiscScroll.CanvasSize=UDim2.new(0,0,0,410)
+MiscScroll=Instance.new("ScrollingFrame",MiscPage); MiscScroll.Size=UDim2.new(1,0,1,0); MiscScroll.BackgroundTransparency=1; MiscScroll.ScrollBarThickness=3; MiscScroll.ScrollBarImageColor3=Color3.fromRGB(140,0,220); MiscScroll.CanvasSize=UDim2.new(0,0,0,460)
 local healthBox=addBox(MiscScroll,"Set Health",0); local maxHealthBox=addBox(MiscScroll,"Max HP",0); maxHealthBox.Position=UDim2.new(0,190,0,0); maxHealthBox.Size=UDim2.new(0,95,0,45)
 local setHealthBtn=addBtn(MiscScroll,"Set Health",55)
 setHealthBtn.MouseButton1Click:Connect(function()
@@ -564,6 +566,8 @@ keyLoopDelayBox=addBox(MiscScroll,"Delay(s)",215,"0.1"); keyLoopDelayBox.Size=UD
 keyPickHint=Instance.new("TextLabel",MiscScroll); keyPickHint.Size=UDim2.new(0,85,0,14); keyPickHint.Position=UDim2.new(0,190,0,208); keyPickHint.BackgroundTransparency=1; keyPickHint.Text="click to rebind"; keyPickHint.Font=Enum.Font.Gotham; keyPickHint.TextSize=10; keyPickHint.TextColor3=Color3.fromRGB(120,80,160); keyPickHint.Visible=true
 miscSep3=Instance.new("Frame",MiscScroll); miscSep3.Size=UDim2.new(1,-10,0,1); miscSep3.Position=UDim2.new(0,5,0,292); miscSep3.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep3.BackgroundTransparency=0.4; miscSep3.BorderSizePixel=0
 autoClickBtn=addBtn(MiscScroll,"Auto Click: [']: OFF",300)
+miscSep4=Instance.new("Frame",MiscScroll); miscSep4.Size=UDim2.new(1,-10,0,1); miscSep4.Position=UDim2.new(0,5,0,378); miscSep4.BackgroundColor3=Color3.fromRGB(130,0,200); miscSep4.BackgroundTransparency=0.4; miscSep4.BorderSizePixel=0
+blToggleBtn=addBtn(MiscScroll,"BM & Loot Log: OFF",385)
 autoClickDelayBox=addBox(MiscScroll,"CPS delay",300,"0.05"); autoClickDelayBox.Size=UDim2.new(0,85,0,40); autoClickDelayBox.Position=UDim2.new(0,190,0,300)
 autoClickLbl=Instance.new("TextLabel",MiscScroll); autoClickLbl.Size=UDim2.new(0,85,0,14); autoClickLbl.Position=UDim2.new(0,190,0,343); autoClickLbl.BackgroundTransparency=1; autoClickLbl.Text="delay in secs"; autoClickLbl.Font=Enum.Font.Gotham; autoClickLbl.TextSize=10; autoClickLbl.TextColor3=Color3.fromRGB(120,80,160); autoClickLbl.TextXAlignment=Enum.TextXAlignment.Left
 ghostBtn.MouseButton1Click:Connect(function()
@@ -1055,6 +1059,18 @@ end
 local function tryAddLoot(obj)
     if not lootEspEnabled then return end
     if not isLootObj(obj.Name:lower()) then return end
+    pcall(function()
+        if lootLogEnabled then
+            hrp3 = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            part3 = obj:IsA("BasePart") and obj or (obj:IsA("Model") and obj.PrimaryPart or nil)
+            if hrp3 and part3 then
+                dist3 = math.floor((hrp3.Position - part3.Position).Magnitude)
+                table.insert(lootLogEntries, {name=obj.Name, dist=dist3, x=part3.Position.X, y=part3.Position.Y, z=part3.Position.Z})
+                if #lootLogEntries > 50 then table.remove(lootLogEntries, 1) end
+                if blActiveTab == "loot" and blGui.Enabled then blShowLootLog() end
+            end
+        end
+    end)
     part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and obj.PrimaryPart or nil)
     if not part or part:FindFirstChild("LootESP") then return end
     local bb = Instance.new("BillboardGui", part); bb.Name = "LootESP"; bb.AlwaysOnTop = true
@@ -1389,4 +1405,200 @@ autoClickBtn.MouseButton1Click:Connect(function() click(); toggleAutoClick() end
 UIS.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.Quote then toggleAutoClick() end
+end)
+
+--// [BOOKMARK & LOOT LOG WINDOW]
+bookmarkEnabled = false
+bookmarks = {}
+bookmarkCount = 0
+lootLogEnabled = false
+lootLogEntries = {}
+blLineY = 0
+blActiveTab = "bookmarks"
+
+blGui = Instance.new("ScreenGui", game.CoreGui)
+blGui.Name = "FinestBL"; blGui.ResetOnSpawn = false; blGui.IgnoreGuiInset = true; blGui.Enabled = false
+
+blFrame = Instance.new("Frame", blGui)
+blFrame.Size = UDim2.new(0,300,0,230); blFrame.Position = UDim2.new(0,10,1,-240)
+blFrame.BackgroundColor3 = Color3.fromRGB(22,0,42); blFrame.BackgroundTransparency = 0.08
+blFrame.BorderSizePixel = 0; blFrame.Active = true; blFrame.Draggable = true
+Instance.new("UICorner", blFrame).CornerRadius = UDim.new(0,14)
+blStroke = Instance.new("UIStroke", blFrame); blStroke.Color = Color3.fromRGB(120,0,200); blStroke.Thickness = 1.5
+
+-- Title bar
+blTitleBar = Instance.new("Frame", blFrame)
+blTitleBar.Size = UDim2.new(1,0,0,30); blTitleBar.BackgroundColor3 = Color3.fromRGB(40,0,70); blTitleBar.BorderSizePixel = 0
+Instance.new("UICorner", blTitleBar).CornerRadius = UDim.new(0,14)
+blTitle = Instance.new("TextLabel", blTitleBar)
+blTitle.Size = UDim2.new(1,-10,1,0); blTitle.Position = UDim2.new(0,10,0,0)
+blTitle.BackgroundTransparency = 1; blTitle.Text = "📌 Bookmarks & Loot Log"
+blTitle.Font = Enum.Font.GothamBold; blTitle.TextSize = 13
+blTitle.TextColor3 = Color3.fromRGB(255,215,0); blTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tab buttons
+blTabBookmarks = Instance.new("TextButton", blFrame)
+blTabBookmarks.Size = UDim2.new(0,136,0,24); blTabBookmarks.Position = UDim2.new(0,4,0,33)
+blTabBookmarks.Text = "Bookmarks"; blTabBookmarks.Font = Enum.Font.GothamBold; blTabBookmarks.TextSize = 13
+blTabBookmarks.BackgroundColor3 = Color3.fromRGB(120,0,200); blTabBookmarks.TextColor3 = Color3.new(1,1,1); blTabBookmarks.BorderSizePixel = 0
+Instance.new("UICorner", blTabBookmarks).CornerRadius = UDim.new(0,8)
+
+blTabLoot = Instance.new("TextButton", blFrame)
+blTabLoot.Size = UDim2.new(0,136,0,24); blTabLoot.Position = UDim2.new(0,144,0,33)
+blTabLoot.Text = "Loot Log"; blTabLoot.Font = Enum.Font.GothamBold; blTabLoot.TextSize = 13
+blTabLoot.BackgroundColor3 = Color3.fromRGB(50,0,80); blTabLoot.TextColor3 = Color3.fromRGB(180,130,255); blTabLoot.BorderSizePixel = 0
+Instance.new("UICorner", blTabLoot).CornerRadius = UDim.new(0,8)
+
+-- Save position button
+blSaveBtn = Instance.new("TextButton", blFrame)
+blSaveBtn.Size = UDim2.new(1,-8,0,26); blSaveBtn.Position = UDim2.new(0,4,0,60)
+blSaveBtn.Text = "+ Save Current Position"; blSaveBtn.Font = Enum.Font.GothamBold; blSaveBtn.TextSize = 13
+blSaveBtn.BackgroundColor3 = Color3.fromRGB(0,140,70); blSaveBtn.TextColor3 = Color3.new(1,1,1); blSaveBtn.BorderSizePixel = 0
+Instance.new("UICorner", blSaveBtn).CornerRadius = UDim.new(0,8)
+
+-- Clear loot log button
+blClearLoot = Instance.new("TextButton", blFrame)
+blClearLoot.Size = UDim2.new(1,-8,0,26); blClearLoot.Position = UDim2.new(0,4,0,60)
+blClearLoot.Text = "Clear Log"; blClearLoot.Font = Enum.Font.GothamBold; blClearLoot.TextSize = 13
+blClearLoot.BackgroundColor3 = Color3.fromRGB(140,0,0); blClearLoot.TextColor3 = Color3.new(1,1,1); blClearLoot.BorderSizePixel = 0
+Instance.new("UICorner", blClearLoot).CornerRadius = UDim.new(0,8)
+blClearLoot.Visible = false
+
+-- Scroll area
+blScroll = Instance.new("ScrollingFrame", blFrame)
+blScroll.Size = UDim2.new(1,-8,1,-92); blScroll.Position = UDim2.new(0,4,0,90)
+blScroll.BackgroundTransparency = 1; blScroll.ScrollBarThickness = 3
+blScroll.ScrollBarImageColor3 = Color3.fromRGB(120,0,200); blScroll.CanvasSize = UDim2.new(0,0,0,0)
+
+function blUpdateScroll()
+    blScroll.CanvasSize = UDim2.new(0,0,0,blLineY + 4)
+    blScroll.CanvasPosition = Vector2.new(0, math.max(0, blLineY - 140))
+end
+
+function blClearScroll()
+    for _, c in pairs(blScroll:GetChildren()) do c:Destroy() end
+    blLineY = 0
+end
+
+function blShowBookmarks()
+    blActiveTab = "bookmarks"
+    blTabBookmarks.BackgroundColor3 = Color3.fromRGB(120,0,200)
+    blTabBookmarks.TextColor3 = Color3.new(1,1,1)
+    blTabLoot.BackgroundColor3 = Color3.fromRGB(50,0,80)
+    blTabLoot.TextColor3 = Color3.fromRGB(180,130,255)
+    blSaveBtn.Visible = true
+    blClearLoot.Visible = false
+    blClearScroll()
+    for i, bm in pairs(bookmarks) do
+        blRow = Instance.new("Frame", blScroll)
+        blRow.Size = UDim2.new(1,-6,0,26); blRow.Position = UDim2.new(0,2,0,blLineY)
+        blRow.BackgroundColor3 = Color3.fromRGB(30,0,55); blRow.BackgroundTransparency = 0.3; blRow.BorderSizePixel = 0
+        Instance.new("UICorner", blRow).CornerRadius = UDim.new(0,6)
+        blNameBox = Instance.new("TextBox", blRow)
+        blNameBox.Size = UDim2.new(1,-72,1,-4); blNameBox.Position = UDim2.new(0,4,0,2)
+        blNameBox.BackgroundTransparency = 1; blNameBox.TextXAlignment = Enum.TextXAlignment.Left
+        blNameBox.Text = bm.name; blNameBox.PlaceholderText = "Name..."
+        blNameBox.Font = Enum.Font.Gotham; blNameBox.TextSize = 11
+        blNameBox.TextColor3 = Color3.fromRGB(220,180,255); blNameBox.ClearTextOnFocus = false
+        blNameBox.FocusLost:Connect(function()
+            if blNameBox.Text ~= "" then
+                bm.name = blNameBox.Text
+            end
+        end)
+        blTpBtn = Instance.new("TextButton", blRow)
+        blTpBtn.Size = UDim2.new(0,28,0,20); blTpBtn.Position = UDim2.new(1,-68,0,3)
+        blTpBtn.Text = "TP"; blTpBtn.Font = Enum.Font.GothamBold; blTpBtn.TextSize = 11
+        blTpBtn.BackgroundColor3 = Color3.fromRGB(0,120,200); blTpBtn.TextColor3 = Color3.new(1,1,1); blTpBtn.BorderSizePixel = 0
+        Instance.new("UICorner", blTpBtn).CornerRadius = UDim.new(0,5)
+        blTpBtn.MouseButton1Click:Connect(function()
+            pcall(function()
+                Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(bm.x, bm.y, bm.z)
+            end)
+        end)
+        blDelBtn = Instance.new("TextButton", blRow)
+        blDelBtn.Size = UDim2.new(0,28,0,20); blDelBtn.Position = UDim2.new(1,-36,0,3)
+        blDelBtn.Text = "X"; blDelBtn.Font = Enum.Font.GothamBold; blDelBtn.TextSize = 11
+        blDelBtn.BackgroundColor3 = Color3.fromRGB(160,0,0); blDelBtn.TextColor3 = Color3.new(1,1,1); blDelBtn.BorderSizePixel = 0
+        Instance.new("UICorner", blDelBtn).CornerRadius = UDim.new(0,5)
+        blDelBtn.MouseButton1Click:Connect(function()
+            table.remove(bookmarks, i)
+            blShowBookmarks()
+        end)
+        blLineY = blLineY + 30
+    end
+    blUpdateScroll()
+end
+
+function blShowLootLog()
+    blActiveTab = "loot"
+    blTabLoot.BackgroundColor3 = Color3.fromRGB(120,0,200)
+    blTabLoot.TextColor3 = Color3.new(1,1,1)
+    blTabBookmarks.BackgroundColor3 = Color3.fromRGB(50,0,80)
+    blTabBookmarks.TextColor3 = Color3.fromRGB(180,130,255)
+    blSaveBtn.Visible = false
+    blClearLoot.Visible = true
+    blClearScroll()
+    for _, entry in pairs(lootLogEntries) do
+        blRow2 = Instance.new("Frame", blScroll)
+        blRow2.Size = UDim2.new(1,-6,0,22); blRow2.Position = UDim2.new(0,2,0,blLineY)
+        blRow2.BackgroundTransparency = 1
+        blLbl2 = Instance.new("TextLabel", blRow2)
+        blLbl2.Size = UDim2.new(1,-26,1,0); blLbl2.BackgroundTransparency = 1
+        blLbl2.TextXAlignment = Enum.TextXAlignment.Left
+        blLbl2.Text = entry.name .. " - " .. entry.dist .. "st"
+        blLbl2.Font = Enum.Font.Gotham; blLbl2.TextSize = 11
+        blLbl2.TextColor3 = Color3.fromRGB(100,255,180); blLbl2.TextTruncate = Enum.TextTruncate.AtEnd
+        blTpBtn2 = Instance.new("TextButton", blRow2)
+        blTpBtn2.Size = UDim2.new(0,22,0,20); blTpBtn2.Position = UDim2.new(1,-24,0,1)
+        blTpBtn2.Text = "TP"; blTpBtn2.Font = Enum.Font.GothamBold; blTpBtn2.TextSize = 11
+        blTpBtn2.BackgroundColor3 = Color3.fromRGB(0,120,200); blTpBtn2.TextColor3 = Color3.new(1,1,1)
+        blTpBtn2.MouseButton1Click:Connect(function()
+            pcall(function()
+                Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(entry.x, entry.y, entry.z)
+            end)
+        end)
+        blLineY = blLineY + 24
+    end
+    blUpdateScroll()
+end
+
+-- Tab switching
+blTabBookmarks.MouseButton1Click:Connect(function() blShowBookmarks() end)
+blTabLoot.MouseButton1Click:Connect(function() blShowLootLog() end)
+
+-- Save position
+blSaveBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        hrp2 = Players.LocalPlayer.Character.HumanoidRootPart
+        bookmarkCount = bookmarkCount + 1
+        table.insert(bookmarks, {
+            name = "Spot " .. bookmarkCount,
+            x = hrp2.Position.X,
+            y = hrp2.Position.Y,
+            z = hrp2.Position.Z
+        })
+        blShowBookmarks()
+        notify("Bookmark saved: Spot " .. bookmarkCount, true)
+    end)
+end)
+
+-- Clear loot log
+blClearLoot.MouseButton1Click:Connect(function()
+    lootLogEntries = {}
+    blShowLootLog()
+end)
+
+-- Default view
+blShowBookmarks()
+
+blToggleBtn.MouseButton1Click:Connect(function()
+    click()
+    bookmarkEnabled = not bookmarkEnabled
+    lootLogEnabled = bookmarkEnabled
+    blToggleBtn.Text = bookmarkEnabled and "BM & Loot Log: ON" or "BM & Loot Log: OFF"
+    blToggleBtn.BackgroundColor3 = bookmarkEnabled and Color3.fromRGB(0,200,100) or Color3.fromRGB(120,0,200)
+    blGui.Enabled = bookmarkEnabled
+    activeFeatures["Bookmarks"] = bookmarkEnabled
+    updateFooter()
+    notify("BM & Loot Log: " .. (bookmarkEnabled and "ON" or "OFF"), bookmarkEnabled)
 end)
