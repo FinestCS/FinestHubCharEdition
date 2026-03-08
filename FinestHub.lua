@@ -58,6 +58,13 @@ local function onClose()
     ghostEnabled = false; spinning = false; triggerbotEnabled = false; aimbotEnabled = false
     espEnabled = false; orbiting = false; orbitTarget = nil; chatSpamming = false
     skeletonEnabled = false; healthBarEnabled = false; nightModeEnabled = false
+    if workshopEspEnabled then
+        workshopEspEnabled = false
+        for part,_ in pairs(workshopTracked) do
+            if part and part:FindFirstChild("WorkshopESP") then part.WorkshopESP:Destroy() end
+        end
+        workshopTracked = {}
+    end
     spectating = false; spectateTarget = nil; freezeEnabled = false; freezeTarget = nil
     infiniteJump = false
     swimEnabled = false; workspace.Gravity = 196.2
@@ -1333,48 +1340,29 @@ workshopEspBtn.MouseButton1Click:Connect(function()
             if part and part:FindFirstChild("WorkshopESP") then part.WorkshopESP:Destroy() end
         end
         workshopTracked = {}
+    else
+        wsHrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if wsHrp then
+            wsRange = tonumber(workshopRangeBox.Text) or 30
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and not workshopTracked[obj] then
+                    wsDist2 = (obj.Position - wsHrp.Position).Magnitude
+                    if wsDist2 <= wsRange then
+                        workshopTracked[obj] = true
+                        wsBb = Instance.new("BillboardGui", obj); wsBb.Name = "WorkshopESP"; wsBb.AlwaysOnTop = true
+                        wsBb.Size = UDim2.new(0,140,0,36); wsBb.StudsOffset = Vector3.new(0,2,0)
+                        wsLbl = Instance.new("TextLabel", wsBb); wsLbl.Name = "Lbl"
+                        wsLbl.Size = UDim2.new(1,0,1,0); wsLbl.BackgroundTransparency = 0.35
+                        wsLbl.BackgroundColor3 = Color3.fromRGB(0,15,30); wsLbl.TextColor3 = Color3.fromRGB(100,220,255)
+                        wsLbl.Font = Enum.Font.GothamBold; wsLbl.TextSize = 11; wsLbl.TextWrapped = true
+                        wsLbl.Text = obj.Name .. "\n[" .. math.floor(wsDist2) .. " studs]"
+                        Instance.new("UICorner", wsLbl).CornerRadius = UDim.new(0,6)
+                    end
+                end
+            end
+        end
     end
     notify("Workshop ESP: " .. (workshopEspEnabled and "ON" or "OFF"), workshopEspEnabled)
-end)
-task.spawn(function()
-    while not closed do
-        task.wait(0.2)
-        if not workshopEspEnabled then continue end
-        wsHrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not wsHrp then continue end
-        wsRange = tonumber(workshopRangeBox.Text) or 30
-        -- remove out of range labels
-        for part,_ in pairs(workshopTracked) do
-            if not part or not part.Parent then workshopTracked[part]=nil; continue end
-            wsDist = (part.Position - wsHrp.Position).Magnitude
-            if wsDist > wsRange then
-                if part:FindFirstChild("WorkshopESP") then part.WorkshopESP:Destroy() end
-                workshopTracked[part] = nil
-            else
-                -- update distance text
-                if part:FindFirstChild("WorkshopESP") and part.WorkshopESP:FindFirstChild("Lbl") then
-                    part.WorkshopESP.Lbl.Text = part.Name .. "\n[" .. math.floor(wsDist) .. " studs]"
-                end
-            end
-        end
-        -- scan for new parts in range
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and not obj:FindFirstChild("WorkshopESP") and not workshopTracked[obj] then
-                wsDist2 = (obj.Position - wsHrp.Position).Magnitude
-                if wsDist2 <= wsRange then
-                    workshopTracked[obj] = true
-                    wsBb = Instance.new("BillboardGui", obj); wsBb.Name = "WorkshopESP"; wsBb.AlwaysOnTop = true
-                    wsBb.Size = UDim2.new(0,140,0,36); wsBb.StudsOffset = Vector3.new(0,2,0)
-                    wsLbl = Instance.new("TextLabel", wsBb); wsLbl.Name = "Lbl"
-                    wsLbl.Size = UDim2.new(1,0,1,0); wsLbl.BackgroundTransparency = 0.35
-                    wsLbl.BackgroundColor3 = Color3.fromRGB(0,15,30); wsLbl.TextColor3 = Color3.fromRGB(100,220,255)
-                    wsLbl.Font = Enum.Font.GothamBold; wsLbl.TextSize = 11; wsLbl.TextWrapped = true
-                    wsLbl.Text = obj.Name .. "\n[" .. math.floor(wsDist2) .. " studs]"
-                    Instance.new("UICorner", wsLbl).CornerRadius = UDim.new(0,6)
-                end
-            end
-        end
-    end
 end)
 
 
