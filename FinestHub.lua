@@ -98,6 +98,7 @@ local function onClose()
         if game.CoreGui:FindFirstChild("FinestBL") then game.CoreGui.FinestBL:Destroy() end
         for part,_ in pairs(lootTracked) do pcall(function() if part and part:FindFirstChild("LootESP") then part.LootESP:Destroy() end end) end
         lootTracked = {}
+        for _, obj in pairs(workspace:GetDescendants()) do pcall(function() if obj.Name == "LootESP" then obj:Destroy() end end) end
     end)
 end
 
